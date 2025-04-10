@@ -1,13 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resultado de la Transcripción</title>
+    <title>ZentraText - Resultado de la Transcripción</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <h1>Transcripción:</h1>
-    <p>{{ transcription }}</p>
-    <a href="/">Volver</a>
+    <header>
+        <div class="container">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="ZentraText Logo" class="logo">
+            </div>
+            <h1>ZentraText</h1>
+            <p>Transcripción de audio a texto con inteligencia artificial</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <h2><i class="fas fa-check-circle"></i> Transcripción completada</h2>
+            <p>El archivo de audio ha sido procesado correctamente. A continuación, puedes ver la transcripción:</p>
+            
+            <div class="transcription-container">
+                <h3>Resultado:</h3>
+                <div class="transcription-text" id="transcription-text">{{ transcription }}</div>
+                
+                <div class="actions">
+                    <div>
+                        <button class="btn copy-btn" id="copy-btn">
+                            <i class="fas fa-copy"></i> Copiar texto
+                        </button>
+                        <button class="btn btn-secondary" id="download-btn">
+                            <i class="fas fa-download"></i> Descargar TXT
+                        </button>
+                    </div>
+                    <a href="/" class="btn">
+                        <i class="fas fa-undo"></i> Nueva transcripción
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-lightbulb"></i> Consejos útiles</h2>
+            <ul>
+                <li>Puedes copiar el texto para usarlo en documentos, presentaciones o cualquier aplicación.</li>
+                <li>Descarga la transcripción como archivo de texto para guardarla en tu dispositivo.</li>
+                <li>Para mejores resultados, utiliza archivos de audio con buena calidad de grabación.</li>
+                <li>Si necesitas transcribir otro archivo, simplemente haz clic en "Nueva transcripción".</li>
+            </ul>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 ZentraText - Transcripción de audio con IA</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const copyBtn = document.getElementById('copy-btn');
+            const downloadBtn = document.getElementById('download-btn');
+            const transcriptionText = document.getElementById('transcription-text');
+            
+            // Función para copiar el texto
+            copyBtn.addEventListener('click', () => {
+                const text = transcriptionText.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copiar texto';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar: ', err);
+                });
+            });
+            
+            // Función para descargar como TXT
+            downloadBtn.addEventListener('click', () => {
+                const text = transcriptionText.textContent;
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'transcripcion.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        });
+    </script>
 </body>
 </html>

@@ -1,24 +1,119 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transcriptor de Audio</title>
+    <title>ZentraText - Transcriptor de Audio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <h1>Sube tu archivo de audio</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <button type="submit">Transcribir</button>
-    </form>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <ul>
-          {% for message in messages %}
-            <li>{{ message }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
+    <header>
+        <div class="container">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="ZentraText Logo" class="logo">
+            </div>
+            <h1>ZentraText</h1>
+            <p>Transcripción de audio a texto con inteligencia artificial</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form" id="upload-form">
+                <h2><i class="fas fa-microphone"></i> Sube tu archivo de audio</h2>
+                <p>Formatos soportados: MP3, WAV, M4A, OGG, MP4</p>
+                
+                <div class="file-input-container">
+                    <input type="file" name="file" id="file-input" class="file-input" accept="audio/*">
+                    <label for="file-input" class="file-input-label">
+                        <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                        <p>Arrastra tu archivo aquí o haz clic para seleccionar</p>
+                    </label>
+                    <div id="file-name" class="file-name">No se ha seleccionado ningún archivo</div>
+                </div>
+                
+                <div class="progress-container" id="progress-container">
+                    <p>Procesando el archivo...</p>
+                    <div class="progress-bar">
+                        <div class="progress" id="progress-bar"></div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn" id="submit-btn">
+                    <i class="fas fa-magic"></i> Transcribir
+                </button>
+            </form>
+            
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <ul class="flash-messages">
+                  {% for message in messages %}
+                    <li class="flash-message"><i class="fas fa-exclamation-circle"></i> {{ message }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-info-circle"></i> ¿Cómo funciona?</h2>
+            <ol>
+                <li>Sube tu archivo de audio (MP3, WAV, M4A, OGG, MP4)</li>
+                <li>Nuestro sistema procesará el audio utilizando inteligencia artificial</li>
+                <li>Recibe la transcripción en segundos</li>
+                <li>Descarga o copia el texto para utilizarlo donde necesites</li>
+            </ol>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 ZentraText - Transcripción de audio con IA</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('file-input');
+            const fileName = document.getElementById('file-name');
+            const form = document.getElementById('upload-form');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            fileInput.addEventListener('change', (e) => {
+                if (fileInput.files.length > 0) {
+                    fileName.textContent = fileInput.files[0].name;
+                } else {
+                    fileName.textContent = 'No se ha seleccionado ningún archivo';
+                }
+            });
+            
+            form.addEventListener('submit', (e) => {
+                if (fileInput.files.length === 0) {
+                    e.preventDefault();
+                    alert('Por favor, selecciona un archivo de audio');
+                    return;
+                }
+                
+                progressContainer.classList.add('active');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+                
+                // Simulación de progreso (en la aplicación real, esto se actualizaría con el progreso real)
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 1;
+                    if (progress <= 100) {
+                        progressBar.style.width = progress + '%';
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 150);
+            });
+        });
+    </script>
 </body>
 </html>

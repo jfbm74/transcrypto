@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZentraText - Transcriptor de Audio</title>
+    <title>ZentraText - Transcripción de Audio a Texto</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,7 +12,7 @@
     <header>
         <div class="container">
             <div class="logo-container">
-                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="ZentraText Logo" class="logo">
+                <img src="{{ url_for('static', filename='img/5_Logo_Icono.png') }}" alt="ZentraText Logo" class="logo">
             </div>
             <h1>ZentraText</h1>
             <p>Transcripción de audio a texto con inteligencia artificial</p>
@@ -21,50 +21,64 @@
 
     <main class="container">
         <div class="card">
-            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form" id="upload-form">
-                <h2><i class="fas fa-microphone"></i> Sube tu archivo de audio</h2>
-                <p>Formatos soportados: MP3, WAV, M4A, OGG, MP4</p>
-                
-                <div class="file-input-container">
-                    <input type="file" name="file" id="file-input" class="file-input" accept="audio/*">
+            <h2><i class="fas fa-microphone-alt"></i> Sube tu archivo de audio</h2>
+            <p>Sube un archivo de audio para transcribirlo a texto utilizando inteligencia artificial.</p>
+            
+            <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
+                <div class="upload-container" id="upload-container">
+                    <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                    <p>Arrastra y suelta tu archivo aquí o haz clic para seleccionar</p>
                     <label for="file-input" class="file-input-label">
-                        <i class="fas fa-cloud-upload-alt fa-2x"></i>
-                        <p>Arrastra tu archivo aquí o haz clic para seleccionar</p>
+                        <i class="fas fa-file-audio"></i> Seleccionar archivo
                     </label>
-                    <div id="file-name" class="file-name">No se ha seleccionado ningún archivo</div>
+                    <input type="file" name="file" id="file-input" class="file-input" accept=".mp3,.wav,.m4a,.ogg,.mp4">
+                    <div class="file-info" id="file-info"></div>
                 </div>
                 
-                <div class="progress-container" id="progress-container">
-                    <p>Procesando el archivo...</p>
-                    <div class="progress-bar">
-                        <div class="progress" id="progress-bar"></div>
-                    </div>
+                <div class="upload-actions">
+                    <button type="submit" class="btn" id="transcribe-btn" disabled>
+                        <i class="fas fa-play"></i> Transcribir ahora
+                    </button>
+                    <a href="/api-settings" class="btn btn-secondary">
+                        <i class="fas fa-cog"></i> Configurar API
+                    </a>
                 </div>
-                
-                <button type="submit" class="btn" id="submit-btn">
-                    <i class="fas fa-magic"></i> Transcribir
-                </button>
             </form>
             
             {% with messages = get_flashed_messages() %}
-              {% if messages %}
-                <ul class="flash-messages">
-                  {% for message in messages %}
-                    <li class="flash-message"><i class="fas fa-exclamation-circle"></i> {{ message }}</li>
-                  {% endfor %}
-                </ul>
-              {% endif %}
+                {% if messages %}
+                    <div class="alert">
+                        {% for message in messages %}
+                            <p><i class="fas fa-exclamation-circle"></i> {{ message }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             {% endwith %}
         </div>
         
         <div class="card">
-            <h2><i class="fas fa-info-circle"></i> ¿Cómo funciona?</h2>
-            <ol>
-                <li>Sube tu archivo de audio (MP3, WAV, M4A, OGG, MP4)</li>
-                <li>Nuestro sistema procesará el audio utilizando inteligencia artificial</li>
-                <li>Recibe la transcripción en segundos</li>
-                <li>Descarga o copia el texto para utilizarlo donde necesites</li>
-            </ol>
+            <h2><i class="fas fa-info-circle"></i> Acerca de ZentraText</h2>
+            <p>ZentraText utiliza tecnología avanzada de inteligencia artificial para transcribir audio a texto con alta precisión.</p>
+            
+            <div class="features">
+                <div class="feature">
+                    <i class="fas fa-language fa-2x"></i>
+                    <h3>Reconocimiento de español</h3>
+                    <p>Optimizado para el idioma español, capturando acentos y expresiones locales.</p>
+                </div>
+                
+                <div class="feature">
+                    <i class="fas fa-file-alt fa-2x"></i>
+                    <h3>Generación de actas</h3>
+                    <p>Convierte automáticamente tus transcripciones en actas de reunión formales.</p>
+                </div>
+                
+                <div class="feature">
+                    <i class="fas fa-shield-alt fa-2x"></i>
+                    <h3>Privacidad y seguridad</h3>
+                    <p>Tus archivos se procesan localmente y se eliminan después de la transcripción.</p>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -77,42 +91,69 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const fileInput = document.getElementById('file-input');
-            const fileName = document.getElementById('file-name');
-            const form = document.getElementById('upload-form');
-            const progressContainer = document.getElementById('progress-container');
-            const progressBar = document.getElementById('progress-bar');
-            const submitBtn = document.getElementById('submit-btn');
+            const fileInfo = document.getElementById('file-info');
+            const uploadContainer = document.getElementById('upload-container');
+            const transcribeBtn = document.getElementById('transcribe-btn');
             
-            fileInput.addEventListener('change', (e) => {
+            // Evento para seleccionar archivo con click
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Eventos para drag and drop
+            uploadContainer.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadContainer.classList.add('drag-over');
+            });
+            
+            uploadContainer.addEventListener('dragleave', () => {
+                uploadContainer.classList.remove('drag-over');
+            });
+            
+            uploadContainer.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadContainer.classList.remove('drag-over');
+                
+                if (e.dataTransfer.files.length > 0) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileSelect();
+                }
+            });
+            
+            // Función para manejar la selección de archivos
+            function handleFileSelect() {
                 if (fileInput.files.length > 0) {
-                    fileName.textContent = fileInput.files[0].name;
-                } else {
-                    fileName.textContent = 'No se ha seleccionado ningún archivo';
-                }
-            });
-            
-            form.addEventListener('submit', (e) => {
-                if (fileInput.files.length === 0) {
-                    e.preventDefault();
-                    alert('Por favor, selecciona un archivo de audio');
-                    return;
-                }
-                
-                progressContainer.classList.add('active');
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-                
-                // Simulación de progreso (en la aplicación real, esto se actualizaría con el progreso real)
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += 1;
-                    if (progress <= 100) {
-                        progressBar.style.width = progress + '%';
+                    const file = fileInput.files[0];
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    const allowedExtensions = ['mp3', 'wav', 'm4a', 'ogg', 'mp4'];
+                    
+                    if (allowedExtensions.includes(extension)) {
+                        // Mostrar información del archivo
+                        const fileSize = formatFileSize(file.size);
+                        fileInfo.innerHTML = `<strong>${file.name}</strong> (${fileSize})`;
+                        fileInfo.style.display = 'block';
+                        
+                        // Activar el botón de transcripción
+                        transcribeBtn.disabled = false;
                     } else {
-                        clearInterval(interval);
+                        fileInfo.innerHTML = '<span class="error">Formato no soportado. Por favor, selecciona un archivo MP3, WAV, M4A, OGG o MP4.</span>';
+                        fileInfo.style.display = 'block';
+                        transcribeBtn.disabled = true;
                     }
-                }, 150);
-            });
+                } else {
+                    fileInfo.style.display = 'none';
+                    transcribeBtn.disabled = true;
+                }
+            }
+            
+            // Función para formatear el tamaño del archivo
+            function formatFileSize(bytes) {
+                if (bytes < 1024) {
+                    return bytes + ' bytes';
+                } else if (bytes < 1048576) {
+                    return (bytes / 1024).toFixed(2) + ' KB';
+                } else {
+                    return (bytes / 1048576).toFixed(2) + ' MB';
+                }
+            }
         });
     </script>
 </body>

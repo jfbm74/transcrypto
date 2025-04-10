@@ -12,7 +12,7 @@
     <header>
         <div class="container">
             <div class="logo-container">
-                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="ZentraText Logo" class="logo">
+                <img src="{{ url_for('static', filename='img/5_Logo_Icono.png') }}" alt="ZentraText Logo" class="logo">
             </div>
             <h1>ZentraText</h1>
             <p>Transcripción de audio a texto con inteligencia artificial</p>
@@ -36,10 +36,30 @@
                         <button class="btn btn-secondary" id="download-btn">
                             <i class="fas fa-download"></i> Descargar TXT
                         </button>
+                        <button class="btn btn-primary" id="acta-btn">
+                            <i class="fas fa-file-alt"></i> Generar Acta
+                        </button>
                     </div>
                     <a href="/" class="btn">
                         <i class="fas fa-undo"></i> Nueva transcripción
                     </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal para mostrar el acta generada -->
+        <div id="acta-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Acta de Reunión</h2>
+                <div id="acta-content" class="acta-content"></div>
+                <div class="modal-actions">
+                    <button class="btn" id="copy-acta-btn">
+                        <i class="fas fa-copy"></i> Copiar
+                    </button>
+                    <button class="btn btn-secondary" id="download-acta-btn">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
                 </div>
             </div>
         </div>
@@ -51,6 +71,7 @@
                 <li>Descarga la transcripción como archivo de texto para guardarla en tu dispositivo.</li>
                 <li>Para mejores resultados, utiliza archivos de audio con buena calidad de grabación.</li>
                 <li>Si necesitas transcribir otro archivo, simplemente haz clic en "Nueva transcripción".</li>
+                <li>Utiliza la función "Generar Acta" para convertir automáticamente la transcripción en un acta de reunión estructurada.</li>
             </ul>
         </div>
     </main>
@@ -66,6 +87,12 @@
             const copyBtn = document.getElementById('copy-btn');
             const downloadBtn = document.getElementById('download-btn');
             const transcriptionText = document.getElementById('transcription-text');
+            const actaBtn = document.getElementById('acta-btn');
+            const actaModal = document.getElementById('acta-modal');
+            const closeModal = document.querySelector('.close');
+            const actaContent = document.getElementById('acta-content');
+            const copyActaBtn = document.getElementById('copy-acta-btn');
+            const downloadActaBtn = document.getElementById('download-acta-btn');
             
             // Función para copiar el texto
             copyBtn.addEventListener('click', () => {
@@ -88,6 +115,77 @@
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = 'transcripcion.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+            
+            // Función para generar acta y mostrar modal
+            actaBtn.addEventListener('click', () => {
+                const text = transcriptionText.textContent;
+                
+                // Mostrar un indicador de carga en el modal
+                actaContent.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Generando acta...</div>';
+                actaModal.style.display = 'block';
+                
+                // Hacer la solicitud al servidor para generar el acta
+                fetch('/generate-acta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ transcription: text }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Formatear el texto del acta (reemplazar saltos de línea por etiquetas <br>)
+                        const formattedActa = data.acta.replace(/\n/g, '<br>');
+                        actaContent.innerHTML = formattedActa;
+                    } else {
+                        actaContent.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle"></i> Error: ${data.error}</div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    actaContent.innerHTML = '<div class="error"><i class="fas fa-exclamation-circle"></i> Error al generar el acta. Por favor, intenta de nuevo.</div>';
+                });
+            });
+            
+            // Cerrar modal
+            closeModal.addEventListener('click', () => {
+                actaModal.style.display = 'none';
+            });
+            
+            // Cerrar modal al hacer clic fuera del contenido
+            window.addEventListener('click', (event) => {
+                if (event.target == actaModal) {
+                    actaModal.style.display = 'none';
+                }
+            });
+            
+            // Copiar acta
+            copyActaBtn.addEventListener('click', () => {
+                const text = actaContent.innerText || actaContent.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    copyActaBtn.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+                    setTimeout(() => {
+                        copyActaBtn.innerHTML = '<i class="fas fa-copy"></i> Copiar';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar: ', err);
+                });
+            });
+            
+            // Descargar acta
+            downloadActaBtn.addEventListener('click', () => {
+                const text = actaContent.innerText || actaContent.textContent;
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'acta_reunion.txt';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);

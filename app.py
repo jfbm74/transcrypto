@@ -47,12 +47,18 @@ def create_app(config_class=Config):
         # Ruta para configurar la clave de API
         try:
             data = request.get_json()
-            api_key = data.get("api_key", "")
+            api_type = data.get("api_type", "openai")
             
-            if not api_key:
-                return jsonify({"success": False, "error": "No se proporcionó una clave de API válida"})
-            
-            app.config['OPENAI_API_KEY'] = api_key
+            if api_type == "openai":
+                api_key = data.get("api_key", "")
+                if not api_key:
+                    return jsonify({"success": False, "error": "No se proporcionó una clave de API válida"})
+                app.config['OPENAI_API_KEY'] = api_key
+            elif api_type == "google":
+                api_key = data.get("google_api_key", "")
+                if not api_key:
+                    return jsonify({"success": False, "error": "No se proporcionó una clave de Google AI válida"})
+                app.config['GOOGLE_AI_API_KEY'] = api_key
             
             return jsonify({"success": True, "message": "Clave de API configurada correctamente"})
             

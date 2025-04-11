@@ -7,33 +7,62 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Configuración de la API de OpenAI</h4>
+                <h4 class="mb-0">Configuración de APIs</h4>
             </div>
             <div class="card-body">
-                <p>Para utilizar la aplicación, necesitas configurar tu clave de API de OpenAI.</p>
+                <p>Configura las APIs necesarias para utilizar todas las funcionalidades de la aplicación.</p>
                 
                 <div class="mb-3">
-                    <label for="apiKey" class="form-label">Clave de API de OpenAI</label>
-                    <input type="password" class="form-control" id="apiKey" placeholder="sk-...">
-                    <div class="form-text">
-                        Tu clave de API se almacenará temporalmente en esta sesión. No se guarda permanentemente en nuestros servidores.
+                    <label for="apiType" class="form-label">Selecciona el servicio a configurar</label>
+                    <select class="form-control" id="apiType">
+                        <option value="openai">OpenAI (Transcripción de audio)</option>
+                        <option value="google">Google AI (Generación de actas)</option>
+                    </select>
+                </div>
+                
+                <!-- Sección para OpenAI -->
+                <div id="openaiSection">
+                    <div class="mb-3">
+                        <label for="apiKey" class="form-label">Clave de API de OpenAI</label>
+                        <input type="password" class="form-control" id="apiKey" placeholder="sk-...">
+                        <div class="form-text">
+                            Para la transcripción de audio con Whisper.
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <a href="https://platform.openai.com/api-keys" target="_blank" class="text-muted small">¿Dónde obtener esta clave?</a>
                     </div>
                 </div>
                 
-                <div class="d-grid">
-                    <button type="button" class="btn btn-primary" id="saveApiKey">Guardar clave de API</button>
+                <!-- Sección para Google AI -->
+                <div id="googleSection" style="display:none;">
+                    <div class="mb-3">
+                        <label for="googleApiKey" class="form-label">Clave de API de Google AI</label>
+                        <input type="password" class="form-control" id="googleApiKey" placeholder="AIza...">
+                        <div class="form-text">
+                            Para la generación de actas con mejor rendimiento.
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-muted small">¿Dónde obtener esta clave?</a>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    Las claves de API se almacenarán temporalmente en esta sesión. No se guardan permanentemente en nuestros servidores.
+                </div>
+                
+                <div class="d-grid mt-4">
+                    <button type="button" class="btn btn-primary" id="saveApiKey">Guardar configuración</button>
                 </div>
                 
                 <div class="alert alert-success mt-3 d-none" id="successMessage">
-                    Clave de API guardada correctamente
+                    Configuración guardada correctamente
                 </div>
                 
                 <div class="alert alert-danger mt-3 d-none" id="errorMessage">
-                    Error al guardar la clave de API
+                    Error al guardar la configuración
                 </div>
-            </div>
-            <div class="card-footer text-muted">
-                <p class="mb-0">¿No tienes una clave de API? <a href="https://platform.openai.com/api-keys" target="_blank">Obtén una en OpenAI</a></p>
             </div>
         </div>
     </div>
@@ -43,20 +72,51 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const apiTypeSelect = document.getElementById('apiType');
+        const openaiSection = document.getElementById('openaiSection');
+        const googleSection = document.getElementById('googleSection');
         const apiKeyInput = document.getElementById('apiKey');
+        const googleApiKeyInput = document.getElementById('googleApiKey');
         const saveButton = document.getElementById('saveApiKey');
         const successMessage = document.getElementById('successMessage');
         const errorMessage = document.getElementById('errorMessage');
         
+        // Cambiar la visualización según el tipo de API seleccionado
+        apiTypeSelect.addEventListener('change', function() {
+            if (this.value === 'openai') {
+                openaiSection.style.display = 'block';
+                googleSection.style.display = 'none';
+            } else {
+                openaiSection.style.display = 'none';
+                googleSection.style.display = 'block';
+            }
+        });
+        
         // Función para guardar la clave de API
         function saveApiKey() {
-            const apiKey = apiKeyInput.value.trim();
+            const apiType = apiTypeSelect.value;
+            let requestData = {
+                api_type: apiType
+            };
             
-            if (!apiKey) {
-                errorMessage.textContent = 'Por favor, introduce una clave de API válida';
-                errorMessage.classList.remove('d-none');
-                successMessage.classList.add('d-none');
-                return;
+            if (apiType === 'openai') {
+                const apiKey = apiKeyInput.value.trim();
+                if (!apiKey) {
+                    errorMessage.textContent = 'Por favor, introduce una clave de API de OpenAI válida';
+                    errorMessage.classList.remove('d-none');
+                    successMessage.classList.add('d-none');
+                    return;
+                }
+                requestData.api_key = apiKey;
+            } else {
+                const googleApiKey = googleApiKeyInput.value.trim();
+                if (!googleApiKey) {
+                    errorMessage.textContent = 'Por favor, introduce una clave de API de Google AI válida';
+                    errorMessage.classList.remove('d-none');
+                    successMessage.classList.add('d-none');
+                    return;
+                }
+                requestData.google_api_key = googleApiKey;
             }
             
             // Ocultar mensajes anteriores
@@ -69,9 +129,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    api_key: apiKey
-                })
+                body: JSON.stringify(requestData)
             })
             .then(response => response.json())
             .then(data => {
@@ -97,8 +155,14 @@
         // Evento para el botón de guardar
         saveButton.addEventListener('click', saveApiKey);
         
-        // Permitir enviar con Enter
+        // Permitir enviar con Enter para ambos campos
         apiKeyInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                saveApiKey();
+            }
+        });
+        
+        googleApiKeyInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 saveApiKey();
             }

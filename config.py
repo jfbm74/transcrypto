@@ -25,3 +25,5 @@ class Config:
     
     # Límites de transcripción
     FREE_TRANSCRIPTIONS_LIMIT = 10
+
+    GOOGLE_AI_API_KEY = os.environ.get("GOOGLE_AI_API_KEY", "")

@@ -5,3 +5,7 @@ uploads/
 __pycache__/
 myenv_py311/
 venv*/
+# Base de datos SQLite
+app.db
+instance/app.db
+*.db

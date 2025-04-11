@@ -1,160 +1,113 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZentraText - Transcripción de Audio a Texto</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <header>
-        <div class="container">
-            <div class="logo-container">
-                <img src="{{ url_for('static', filename='img/5_Logo_Icono.png') }}" alt="ZentraText Logo" class="logo">
-            </div>
-            <h1>ZentraText</h1>
-            <p>Transcripción de audio a texto con inteligencia artificial</p>
-        </div>
-    </header>
+{% extends 'base.html' %}
 
-    <main class="container">
+{% block title %}Inicio - ZentraText{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-md-8 text-center">
+        <h1 class="display-4 mb-4">ZentraText de Audio</h1>
+        <p class="lead">Convierte tus archivos de audio a texto fácilmente</p>
+    </div>
+</div>
+
+{% if current_user.is_authenticated %}
+    {% if current_user.can_transcribe(config['FREE_TRANSCRIPTIONS_LIMIT']) %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Subir archivo de audio</h4>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('transcription.upload_audio') }}" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Selecciona un archivo de audio (MP3, WAV, M4A, OGG, MP4)</label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".mp3,.wav,.m4a,.ogg,.mp4" required>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-text">
+                                Has usado {{ current_user.get_transcription_count() }} de {{ config['FREE_TRANSCRIPTIONS_LIMIT'] }} transcripciones gratuitas.
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Transcribir audio</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="alert alert-warning">
+                <h4 class="alert-heading">¡Límite alcanzado!</h4>
+                <p>Has alcanzado el límite de {{ config['FREE_TRANSCRIPTIONS_LIMIT'] }} transcripciones gratuitas.</p>
+                <hr>
+                <p class="mb-0">Considera actualizar a un plan de pago para continuar utilizando el servicio.</p>
+            </div>
+            <div class="text-center mt-4">
+                <a href="#" class="btn btn-primary btn-lg disabled">Actualizar a Plan Premium</a>
+                <p class="text-muted mt-2">La funcionalidad de suscripción estará disponible próximamente.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% else %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
         <div class="card">
-            <h2><i class="fas fa-microphone-alt"></i> Sube tu archivo de audio</h2>
-            <p>Sube un archivo de audio para transcribirlo a texto utilizando inteligencia artificial.</p>
-            
-            <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
-                <div class="upload-container" id="upload-container">
-                    <i class="fas fa-cloud-upload-alt fa-3x"></i>
-                    <p>Arrastra y suelta tu archivo aquí o haz clic para seleccionar</p>
-                    <label for="file-input" class="file-input-label">
-                        <i class="fas fa-file-audio"></i> Seleccionar archivo
-                    </label>
-                    <input type="file" name="file" id="file-input" class="file-input" accept=".mp3,.wav,.m4a,.ogg,.mp4">
-                    <div class="file-info" id="file-info"></div>
-                </div>
-                
-                <div class="upload-actions">
-                    <button type="submit" class="btn" id="transcribe-btn" disabled>
-                        <i class="fas fa-play"></i> Transcribir ahora
-                    </button>
-                    <a href="/api-settings" class="btn btn-secondary">
-                        <i class="fas fa-cog"></i> Configurar API
-                    </a>
-                </div>
-            </form>
-            
-            {% with messages = get_flashed_messages() %}
-                {% if messages %}
-                    <div class="alert">
-                        {% for message in messages %}
-                            <p><i class="fas fa-exclamation-circle"></i> {{ message }}</p>
-                        {% endfor %}
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 border-end">
+                        <h3 class="text-center mb-4">Bienvenido a nuestra aplicación</h3>
+                        <p>Nuestra aplicación te permite transcribir fácilmente archivos de audio a texto utilizando tecnología avanzada de reconocimiento de voz.</p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Iniciar sesión</a>
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-success">Registrarse</a>
+                        </div>
                     </div>
-                {% endif %}
-            {% endwith %}
-        </div>
-        
-        <div class="card">
-            <h2><i class="fas fa-info-circle"></i> Acerca de ZentraText</h2>
-            <p>ZentraText utiliza tecnología avanzada de inteligencia artificial para transcribir audio a texto con alta precisión.</p>
-            
-            <div class="features">
-                <div class="feature">
-                    <i class="fas fa-language fa-2x"></i>
-                    <h3>Reconocimiento de español</h3>
-                    <p>Optimizado para el idioma español, capturando acentos y expresiones locales.</p>
-                </div>
-                
-                <div class="feature">
-                    <i class="fas fa-file-alt fa-2x"></i>
-                    <h3>Generación de actas</h3>
-                    <p>Convierte automáticamente tus transcripciones en actas de reunión formales.</p>
-                </div>
-                
-                <div class="feature">
-                    <i class="fas fa-shield-alt fa-2x"></i>
-                    <h3>Privacidad y seguridad</h3>
-                    <p>Tus archivos se procesan localmente y se eliminan después de la transcripción.</p>
+                    <div class="col-md-6">
+                        <h4>Características:</h4>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">✓ Transcripción rápida y precisa</li>
+                            <li class="list-group-item">✓ Soporte para múltiples formatos de audio</li>
+                            <li class="list-group-item">✓ Generación automática de actas de reunión</li>
+                            <li class="list-group-item">✓ Historial de transcripciones</li>
+                            <li class="list-group-item">✓ 10 transcripciones gratuitas</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
-    </main>
+    </div>
+</div>
+{% endif %}
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 ZentraText - Transcripción de audio con IA</p>
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h3 class="card-title">Precisión</h3>
+                <p class="card-text">Utilizamos la avanzada tecnología de reconocimiento de voz de Whisper para garantizar transcripciones de alta precisión.</p>
+            </div>
         </div>
-    </footer>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const fileInput = document.getElementById('file-input');
-            const fileInfo = document.getElementById('file-info');
-            const uploadContainer = document.getElementById('upload-container');
-            const transcribeBtn = document.getElementById('transcribe-btn');
-            
-            // Evento para seleccionar archivo con click
-            fileInput.addEventListener('change', handleFileSelect);
-            
-            // Eventos para drag and drop
-            uploadContainer.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadContainer.classList.add('drag-over');
-            });
-            
-            uploadContainer.addEventListener('dragleave', () => {
-                uploadContainer.classList.remove('drag-over');
-            });
-            
-            uploadContainer.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadContainer.classList.remove('drag-over');
-                
-                if (e.dataTransfer.files.length > 0) {
-                    fileInput.files = e.dataTransfer.files;
-                    handleFileSelect();
-                }
-            });
-            
-            // Función para manejar la selección de archivos
-            function handleFileSelect() {
-                if (fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
-                    const extension = file.name.split('.').pop().toLowerCase();
-                    const allowedExtensions = ['mp3', 'wav', 'm4a', 'ogg', 'mp4'];
-                    
-                    if (allowedExtensions.includes(extension)) {
-                        // Mostrar información del archivo
-                        const fileSize = formatFileSize(file.size);
-                        fileInfo.innerHTML = `<strong>${file.name}</strong> (${fileSize})`;
-                        fileInfo.style.display = 'block';
-                        
-                        // Activar el botón de transcripción
-                        transcribeBtn.disabled = false;
-                    } else {
-                        fileInfo.innerHTML = '<span class="error">Formato no soportado. Por favor, selecciona un archivo MP3, WAV, M4A, OGG o MP4.</span>';
-                        fileInfo.style.display = 'block';
-                        transcribeBtn.disabled = true;
-                    }
-                } else {
-                    fileInfo.style.display = 'none';
-                    transcribeBtn.disabled = true;
-                }
-            }
-            
-            // Función para formatear el tamaño del archivo
-            function formatFileSize(bytes) {
-                if (bytes < 1024) {
-                    return bytes + ' bytes';
-                } else if (bytes < 1048576) {
-                    return (bytes / 1024).toFixed(2) + ' KB';
-                } else {
-                    return (bytes / 1048576).toFixed(2) + ' MB';
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h3 class="card-title">Velocidad</h3>
+                <p class="card-text">Obtendrás tus transcripciones en cuestión de minutos, dependiendo de la duración del archivo de audio.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h3 class="card-title">Versatilidad</h3>
+                <p class="card-text">Soportamos múltiples formatos de audio (MP3, WAV, M4A, OGG, MP4) y generamos actas de reunión automáticamente.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

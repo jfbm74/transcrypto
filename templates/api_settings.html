@@ -1,132 +1,108 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZentraText - Configuración de API</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <header>
-        <div class="container">
-            <div class="logo-container">
-                <img src="{{ url_for('static', filename='img/5_Logo_Icono.png') }}" alt="ZentraText Logo" class="logo">
-            </div>
-            <h1>ZentraText</h1>
-            <p>Transcripción de audio a texto con inteligencia artificial</p>
-        </div>
-    </header>
+{% extends 'base.html' %}
 
-    <main class="container">
+{% block title %}Configuración de API - ZentraText{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
         <div class="card">
-            <h2><i class="fas fa-cog"></i> Configuración de API</h2>
-            <p>Configura tu clave de API de OpenAI para utilizar la función de generación de actas de reunión.</p>
-            
-            <div class="form-container">
-                <div class="form-group">
-                    <label for="api-key">Clave de API de OpenAI:</label>
-                    <input type="password" id="api-key" class="form-control" placeholder="Ingresa tu clave de API">
-                    <small class="form-text">La clave se almacenará temporalmente durante la sesión actual.</small>
-                </div>
-                
-                <div class="form-actions">
-                    <button class="btn" id="save-btn">
-                        <i class="fas fa-save"></i> Guardar configuración
-                    </button>
-                </div>
-                
-                <div id="status-message" class="status-message"></div>
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Configuración de la API de OpenAI</h4>
             </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-info-circle"></i> ¿Dónde obtener tu clave de API?</h3>
-                <ol>
-                    <li>Inicia sesión en tu cuenta de <a href="https://platform.openai.com/" target="_blank">OpenAI</a>.</li>
-                    <li>Ve a la sección de API Keys en tu perfil.</li>
-                    <li>Crea una nueva clave de API (Secret Key).</li>
-                    <li>Copia la clave y pégala en el campo de arriba.</li>
-                </ol>
-                <p class="warning"><i class="fas fa-exclamation-triangle"></i> Importante: Nunca compartas tu clave de API con otras personas. Esta aplicación solo almacena la clave temporalmente y no la guarda en una base de datos.</p>
+            <div class="card-body">
+                <p>Para utilizar la aplicación, necesitas configurar tu clave de API de OpenAI.</p>
+                
+                <div class="mb-3">
+                    <label for="apiKey" class="form-label">Clave de API de OpenAI</label>
+                    <input type="password" class="form-control" id="apiKey" placeholder="sk-...">
+                    <div class="form-text">
+                        Tu clave de API se almacenará temporalmente en esta sesión. No se guarda permanentemente en nuestros servidores.
+                    </div>
+                </div>
+                
+                <div class="d-grid">
+                    <button type="button" class="btn btn-primary" id="saveApiKey">Guardar clave de API</button>
+                </div>
+                
+                <div class="alert alert-success mt-3 d-none" id="successMessage">
+                    Clave de API guardada correctamente
+                </div>
+                
+                <div class="alert alert-danger mt-3 d-none" id="errorMessage">
+                    Error al guardar la clave de API
+                </div>
+            </div>
+            <div class="card-footer text-muted">
+                <p class="mb-0">¿No tienes una clave de API? <a href="https://platform.openai.com/api-keys" target="_blank">Obtén una en OpenAI</a></p>
             </div>
         </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const apiKeyInput = document.getElementById('apiKey');
+        const saveButton = document.getElementById('saveApiKey');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
         
-        <div class="bottom-actions">
-            <a href="/" class="btn">
-                <i class="fas fa-home"></i> Volver a inicio
-            </a>
-        </div>
-    </main>
-
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 ZentraText - Transcripción de audio con IA</p>
-        </div>
-    </footer>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const apiKeyInput = document.getElementById('api-key');
-            const saveBtn = document.getElementById('save-btn');
-            const statusMessage = document.getElementById('status-message');
+        // Función para guardar la clave de API
+        function saveApiKey() {
+            const apiKey = apiKeyInput.value.trim();
             
-            // Función para guardar la clave de API
-            saveBtn.addEventListener('click', () => {
-                const apiKey = apiKeyInput.value.trim();
-                
-                if (!apiKey) {
-                    showStatus('error', 'Por favor, ingresa una clave de API válida.');
-                    return;
+            if (!apiKey) {
+                errorMessage.textContent = 'Por favor, introduce una clave de API válida';
+                errorMessage.classList.remove('d-none');
+                successMessage.classList.add('d-none');
+                return;
+            }
+            
+            // Ocultar mensajes anteriores
+            successMessage.classList.add('d-none');
+            errorMessage.classList.add('d-none');
+            
+            // Enviar la clave de API al servidor
+            fetch('{{ url_for("set_api_key") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    api_key: apiKey
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    successMessage.textContent = data.message;
+                    successMessage.classList.remove('d-none');
+                    
+                    // Redirigir a la página principal después de 2 segundos
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("index") }}';
+                    }, 2000);
+                } else {
+                    errorMessage.textContent = data.error;
+                    errorMessage.classList.remove('d-none');
                 }
-                
-                // Mostrar estado de carga
-                showStatus('loading', 'Guardando configuración...');
-                
-                // Hacer la solicitud al servidor
-                fetch('/set-api-key', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ api_key: apiKey }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showStatus('success', 'Clave de API guardada correctamente. Ahora puedes utilizar la función de generación de actas.');
-                        
-                        // Limpiar el campo después de un tiempo
-                        setTimeout(() => {
-                            apiKeyInput.value = '••••••••••••••••••••••••••';
-                        }, 1000);
-                    } else {
-                        showStatus('error', `Error: ${data.error}`);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showStatus('error', 'Error al guardar la configuración. Por favor, intenta de nuevo.');
-                });
+            })
+            .catch(error => {
+                errorMessage.textContent = 'Error de conexión: ' + error;
+                errorMessage.classList.remove('d-none');
             });
-            
-            // Función para mostrar mensajes de estado
-            function showStatus(type, message) {
-                statusMessage.className = 'status-message';
-                statusMessage.classList.add(type);
-                
-                if (type === 'loading') {
-                    statusMessage.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
-                } else if (type === 'success') {
-                    statusMessage.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-                } else if (type === 'error') {
-                    statusMessage.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-                }
-                
-                // Hacer scroll hacia el mensaje
-                statusMessage.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Evento para el botón de guardar
+        saveButton.addEventListener('click', saveApiKey);
+        
+        // Permitir enviar con Enter
+        apiKeyInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                saveApiKey();
             }
         });
-    </script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}

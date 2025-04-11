@@ -1,0 +1,134 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app
+from flask_login import login_required, current_user
+import os
+from modules.transcription.services import process_audio_file, generate_meeting_minutes
+from modules.transcription.models import Transcription, db
+
+transcription_bp = Blueprint('transcription', __name__, url_prefix='/transcription')
+
+@transcription_bp.route('/upload', methods=["POST"])
+@login_required
+def upload_audio():
+    # Verificar si hay un archivo en la solicitud
+    if "file" not in request.files:
+        flash("No se encontró ningún archivo en la solicitud")
+        return redirect(url_for("index"))
+
+    file = request.files["file"]
+    if file.filename == "":
+        flash("No se seleccionó ningún archivo")
+        return redirect(url_for("index"))
+
+    # Verificar la extensión del archivo
+    allowed_extensions = {'mp3', 'wav', 'm4a', 'ogg', 'mp4'}
+    if not '.' in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+        flash("Formato de archivo no soportado. Por favor, sube un archivo MP3, WAV, M4A, OGG o MP4.")
+        return redirect(url_for("index"))
+
+    # Verificar si tenemos la clave API configurada
+    if not current_app.config['OPENAI_API_KEY']:
+        flash("No se ha configurado la clave de API de OpenAI. Por favor, configúrala primero.")
+        return redirect(url_for("api_settings"))
+    
+    # Verificar si el usuario puede realizar más transcripciones gratuitas
+    free_limit = current_app.config['FREE_TRANSCRIPTIONS_LIMIT']
+    if not current_user.can_transcribe(free_limit):
+        flash(f"Has alcanzado el límite de {free_limit} transcripciones gratuitas. Por favor, actualiza a un plan de pago.")
+        return redirect(url_for("index"))
+
+    # Procesar el archivo
+    try:
+        result = process_audio_file(file, current_user.id)
+        
+        # Guardar la transcripción en la base de datos
+        transcription = Transcription(
+            user_id=current_user.id,
+            original_filename=result["original_filename"],
+            file_path=result["file_path"],
+            transcript_path=result["transcript_filename"],
+            transcript_text=result["transcription_text"],
+            processing_time=result["processing_time"]
+        )
+        db.session.add(transcription)
+        db.session.commit()
+        
+        # Mostrar los resultados
+        return render_template(
+            "result.html", 
+            transcription=result["transcription_text"],
+            filename=result["original_filename"],
+            processing_time=result["processing_time"],
+            transcript_path=result["transcript_filename"]
+        )
+    
+    except Exception as e:
+        current_app.logger.error(f"Error al procesar el archivo: {str(e)}")
+        flash(f"Error al procesar el archivo: {str(e)}")
+        return redirect(url_for("index"))
+
+@transcription_bp.route('/download/<filename>')
+@login_required
+def download_transcript(filename):
+    try:
+        # Verificar que la transcripción pertenece al usuario actual
+        transcription = Transcription.query.filter_by(
+            transcript_path=filename, 
+            user_id=current_user.id
+        ).first()
+        
+        if not transcription:
+            flash("No se encontró la transcripción solicitada o no tienes permisos para acceder a ella.")
+            return redirect(url_for("index"))
+        
+        file_path = os.path.join(current_app.config["TRANSCRIPT_FOLDER"], filename)
+        
+        # Verificar que el archivo existe
+        if not os.path.exists(file_path):
+            flash("El archivo de transcripción no se encuentra en el servidor.")
+            return redirect(url_for("index"))
+            
+        # En Python 3.11, send_file puede requerir parámetros adicionales
+        return send_file(
+            file_path, 
+            as_attachment=True,
+            download_name=f"transcripcion_{transcription.original_filename}.txt",
+            mimetype="text/plain"
+        )
+    except Exception as e:
+        flash(f"Error al descargar el archivo: {str(e)}")
+        return redirect(url_for("index"))
+
+@transcription_bp.route('/generate-acta', methods=["POST"])
+@login_required
+def generate_acta():
+    # Obtener la transcripción de la solicitud
+    try:
+        data = request.get_json()
+        transcription = data.get("transcription", "")
+        
+        if not transcription:
+            return jsonify({"success": False, "error": "No se proporcionó ninguna transcripción"})
+        
+        # Llamar a la función para generar el acta
+        result = generate_meeting_minutes(transcription)
+        
+        # Devolver la respuesta
+        return jsonify(result)
+    
+    except Exception as e:
+        current_app.logger.error(f"Error al generar el acta: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
+
+@transcription_bp.route('/history')
+@login_required
+def history():
+    # Obtener todas las transcripciones del usuario actual
+    transcriptions = Transcription.query.filter_by(
+        user_id=current_user.id
+    ).order_by(Transcription.created_at.desc()).all()
+    
+    return render_template(
+        'transcription/history.html', 
+        title='Historial de Transcripciones',
+        transcriptions=transcriptions
+    )

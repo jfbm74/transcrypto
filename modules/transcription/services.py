@@ -5,6 +5,7 @@ from openai import OpenAI
 from flask import current_app
 from werkzeug.utils import secure_filename
 from modules.utils.audio_processing import split_audio_file, combine_transcriptions, get_file_size
+from modules.transcription.google_ai_service import generate_meeting_minutes_with_google
 
 # Cliente de OpenAI
 client = None
@@ -86,8 +87,13 @@ def transcribe_audio(file_path):
     return transcription.text
 
 def generate_meeting_minutes(transcription):
-    """Genera un acta de reunión basada en la transcripción usando GPT-4"""
+    """Genera un acta de reunión basada en la transcripción"""
     try:
+        # Intentar con Google AI primero si está configurado
+        if current_app.config.get('GOOGLE_AI_API_KEY'):
+            return generate_meeting_minutes_with_google(transcription)
+        
+        # Si no está configurado Google AI, usar OpenAI como fallback
         client = initialize_openai_client()
         if not client:
             return {"success": False, "error": "No se pudo inicializar el cliente de OpenAI"}

@@ -96,19 +96,18 @@ def generate_meeting_minutes(transcription):
         system_message = "Eres un asistente especializado en crear actas de reunión."
         user_message = f"""
         Por favor, convierte la siguiente transcripción en un acta de reunión formal. 
-        La transcripción es de una reunión. 
-        Crea un formato de acta con:
-        
+
+        Formato esperado:
         1. Título "ACTA DE REUNIÓN"
         2. Fecha y hora (extráelas del contenido si es posible, si no están, usa "No especificado")
-        3. Asistentes (extráelos del contenido si es posible, si no están, indica "No especificado")
-        4. Orden del día (basado en los temas principales discutidos)
-        5. Desarrollo (resumido por puntos principales, manteniendo la información clave)
-        6. Acuerdos y compromisos (extraídos de la conversación)
-        7. Conclusión
-        
+        3. Asistentes (usa roles o nombres si están presentes en la conversación, sino "No especificado")
+        4. Orden del día (temas principales agrupados temáticamente)
+        5. Desarrollo (resumen por temas tratados, sin omitir detalles relevantes)
+        6. Acuerdos y compromisos (extrae **todos los compromisos concretos**, responsables y fechas si se mencionan)
+        7. Conclusión (resumen de lo acordado con énfasis en próximos pasos)
+
         Aquí está la transcripción:
-        
+
         {transcription}
         """
         

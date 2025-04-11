@@ -1,22 +1,38 @@
-# Paquetes esenciales para Flask con versiones compatibles
-Flask==2.2.3
-Werkzeug==2.2.3
-Jinja2==3.1.2
-itsdangerous==2.1.2
-click==8.1.3
+alembic==1.15.2
+annotated-types==0.7.0
+anyio==4.9.0
 blinker==1.6.2
-
-# Autenticación y base de datos
+certifi==2025.1.31
+charset-normalizer==3.4.1
+click==8.1.3
+distro==1.9.0
+dnspython==2.7.0
+email_validator==2.2.0
+Flask==2.2.3
 Flask-Login==0.6.2
-Flask-SQLAlchemy==3.0.3
 Flask-Migrate==4.0.4
+Flask-SQLAlchemy==3.0.3
 Flask-WTF==1.1.1
-WTForms==3.0.1
-
-# Procesamiento de API y OpenAI
+h11==0.14.0
+httpcore==1.0.7
+httpx==0.28.1
+idna==3.10
+itsdangerous==2.1.2
+Jinja2==3.1.2
+jiter==0.9.0
+Mako==1.3.10
+MarkupSafe==3.0.2
 openai==1.72.0
+pydantic==2.11.3
+pydantic_core==2.33.1
+pydub==0.25.1
 python-dotenv==1.0.0
 requests==2.28.2
-
-# Utilidades
+sniffio==1.3.1
+SQLAlchemy==2.0.40
 tqdm==4.65.0
+typing-inspection==0.4.0
+typing_extensions==4.13.2
+urllib3==1.26.20
+Werkzeug==2.2.3
+WTForms==3.2.1

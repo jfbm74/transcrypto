@@ -38,9 +38,19 @@
                                     <button class="btn btn-sm btn-outline-info show-transcription"
                                             data-bs-toggle="modal" 
                                             data-bs-target="#transcriptionModal"
-                                            data-id="{{ transcription.id }}">
+                                            data-id="{{ transcription.id }}"
+                                            data-transcription="{{ transcription.transcript_text }}">
                                         Ver
                                     </button>
+                                    {% if transcription.acta_text %}
+                                    <button class="btn btn-sm btn-outline-success show-acta"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#actaModal"
+                                            data-id="{{ transcription.id }}"
+                                            data-acta="{{ transcription.acta_text }}">
+                                        Ver Acta
+                                    </button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -94,6 +104,7 @@
                 <div id="actaContent" class="p-3 bg-light border rounded"></div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-success" id="btnSaveActa">Guardar Acta</button>
                 <button type="button" class="btn btn-primary" id="btnCopyActa">Copiar al portapapeles</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
@@ -105,24 +116,43 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Variables para almacenar la transcripción actual
+        // Variables para almacenar la transcripción actual y su ID
         let currentTranscription = '';
+        let currentTranscriptionId = null;
         
-        // Mostrar transcripción en el modal - enfoque compatible con Python 3.11
+        // Mostrar transcripción en el modal
         const showTranscriptionButtons = document.querySelectorAll('.show-transcription');
         showTranscriptionButtons.forEach(button => {
             button.addEventListener('click', function() {
-                // En lugar de usar el atributo data-transcription, lo obtendremos mediante una solicitud AJAX
-                // para evitar problemas con caracteres especiales en el HTML
+                // Obtener el ID de la transcripción
                 const transcriptionId = this.getAttribute('data-id');
+                currentTranscriptionId = transcriptionId;
                 
-                // Simulamos la carga de la transcripción (en una app real, harías una solicitud AJAX)
-                // Para esta demostración, simplemente usamos el texto ya presente
-                const row = this.closest('tr');
-                const transcriptionCell = row.querySelector('td:nth-child(2)').textContent;
-                currentTranscription = `Transcripción del archivo: ${transcriptionCell}`;
+                // Obtener el texto de la transcripción
+                const transcriptionText = this.getAttribute('data-transcription');
+                if (transcriptionText) {
+                    currentTranscription = transcriptionText;
+                } else {
+                    // Fallback para casos donde el atributo data no contenga el texto
+                    const row = this.closest('tr');
+                    const transcriptionCell = row.querySelector('td:nth-child(2)').textContent;
+                    currentTranscription = `Transcripción del archivo: ${transcriptionCell}`;
+                }
                 
                 document.querySelector('.transcription-content').textContent = currentTranscription;
+            });
+        });
+
+        // Mostrar acta guardada
+        const showActaButtons = document.querySelectorAll('.show-acta');
+        showActaButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const actaText = this.getAttribute('data-acta');
+                const transcriptionId = this.getAttribute('data-id');
+                currentTranscriptionId = transcriptionId;
+                
+                document.getElementById('loadingActa').classList.add('d-none');
+                document.getElementById('actaContent').innerHTML = actaText.replace(/\n/g, '<br>');
             });
         });
         
@@ -166,6 +196,42 @@
                 document.getElementById('loadingActa').classList.add('d-none');
                 document.getElementById('actaContent').innerHTML = 
                     `<div class="alert alert-danger">Error al generar el acta: ${error}</div>`;
+            });
+        });
+        
+        // Guardar acta en la base de datos
+        const btnSaveActa = document.getElementById('btnSaveActa');
+        btnSaveActa.addEventListener('click', function() {
+            const actaContent = document.getElementById('actaContent').innerHTML;
+            
+            if (!currentTranscriptionId || !actaContent) {
+                alert('No se puede guardar el acta: Falta información necesaria');
+                return;
+            }
+            
+            // Llamar a la API para guardar el acta
+            fetch('{{ url_for("transcription.save_acta") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    transcription_id: currentTranscriptionId,
+                    acta_text: actaContent
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Acta guardada correctamente');
+                    // Actualizar la página para mostrar el botón de Ver Acta
+                    location.reload();
+                } else {
+                    alert('Error al guardar el acta: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error de conexión: ' + error);
             });
         });
         

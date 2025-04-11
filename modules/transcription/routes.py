@@ -132,3 +132,33 @@ def history():
         title='Historial de Transcripciones',
         transcriptions=transcriptions
     )
+
+@transcription_bp.route('/save-acta', methods=["POST"])
+@login_required
+def save_acta():
+    try:
+        data = request.get_json()
+        transcription_id = data.get("transcription_id")
+        acta_text = data.get("acta_text")
+        
+        if not transcription_id or not acta_text:
+            return jsonify({"success": False, "error": "Faltan datos requeridos"})
+        
+        # Verificar que la transcripción pertenece al usuario actual
+        transcription = Transcription.query.filter_by(
+            id=transcription_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not transcription:
+            return jsonify({"success": False, "error": "Transcripción no encontrada"})
+        
+        # Guardar el acta en la base de datos
+        transcription.acta_text = acta_text
+        db.session.commit()
+        
+        return jsonify({"success": True, "message": "Acta guardada correctamente"})
+    
+    except Exception as e:
+        current_app.logger.error(f"Error al guardar el acta: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})

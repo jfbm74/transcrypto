@@ -9,6 +9,7 @@ class Transcription(db.Model):
     file_path = db.Column(sa.String(255), nullable=False)
     transcript_path = db.Column(sa.String(255), nullable=False)
     transcript_text = db.Column(sa.Text)
+    acta_text = db.Column(sa.Text, nullable=True)
     processing_time = db.Column(sa.Float)
     created_at = db.Column(sa.DateTime, default=datetime.utcnow)
     

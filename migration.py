@@ -21,6 +21,14 @@ def migrate_database():
                 print("Columna acta_text añadida a la tabla transcription")
         else:
             print("La columna acta_text ya existe")
+        
+        # Verificar que la columna se añadió correctamente
+        inspector = sa.inspect(db.engine)
+        columns = [c['name'] for c in inspector.get_columns('transcription')]
+        if 'acta_text' in columns:
+            print("Verificación: la columna acta_text está presente en la tabla")
+        else:
+            print("ERROR: La columna acta_text no se añadió correctamente")
 
 if __name__ == "__main__":
     migrate_database()

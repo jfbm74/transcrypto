@@ -47,7 +47,7 @@
                                             data-bs-toggle="modal" 
                                             data-bs-target="#actaModal"
                                             data-id="{{ transcription.id }}"
-                                            data-acta="{{ transcription.acta_text }}">
+                                            data-acta="{{ transcription.acta_text|e }}">
                                         Ver Acta
                                     </button>
                                     {% endif %}
@@ -152,7 +152,15 @@
                 currentTranscriptionId = transcriptionId;
                 
                 document.getElementById('loadingActa').classList.add('d-none');
-                document.getElementById('actaContent').innerHTML = actaText.replace(/\n/g, '<br>');
+                
+                // Asegurarse de manejar correctamente los saltos de línea
+                // Si el texto ya tiene etiquetas HTML (como puede ser el caso al guardar innerHTML)
+                if (actaText.includes('<br>') || actaText.includes('<div>')) {
+                    document.getElementById('actaContent').innerHTML = actaText;
+                } else {
+                    // Si es texto plano, convertir los saltos de línea
+                    document.getElementById('actaContent').innerHTML = actaText.replace(/\n/g, '<br>');
+                }
             });
         });
         
@@ -202,7 +210,8 @@
         // Guardar acta en la base de datos
         const btnSaveActa = document.getElementById('btnSaveActa');
         btnSaveActa.addEventListener('click', function() {
-            const actaContent = document.getElementById('actaContent').innerHTML;
+            // Obtener el contenido como texto plano en lugar de HTML
+            const actaContent = document.getElementById('actaContent').innerText;
             
             if (!currentTranscriptionId || !actaContent) {
                 alert('No se puede guardar el acta: Falta información necesaria');

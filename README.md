@@ -1,4 +1,4 @@
-# App de Transcripción de Audio
+# ZentraText de Audio
 
 Esta aplicación permite transcribir archivos de audio a texto utilizando la API de OpenAI (Whisper) y generar actas de reunión a partir de las transcripciones utilizando GPT-4.
 

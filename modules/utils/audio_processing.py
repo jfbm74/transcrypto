@@ -97,4 +97,4 @@ def combine_transcriptions(transcriptions):
     Returns:
         Texto combinado
     """
-    return "\n\n".join(transcriptions)
+    return " ".join(transcriptions)

@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Inicio - App de Transcripción{% endblock %}
+{% block title %}Inicio - ZentraText{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center mb-5">
     <div class="col-md-8 text-center">
-        <h1 class="display-4 mb-4">App de Transcripción de Audio</h1>
+        <h1 class="display-4 mb-4">ZentraText de Audio</h1>
         <p class="lead">Convierte tus archivos de audio a texto fácilmente</p>
     </div>
 </div>
@@ -19,7 +19,7 @@
                     <h4 class="mb-0">Subir archivo de audio</h4>
                 </div>
                 <div class="card-body">
-                    <form action="{{ url_for('transcription.upload_file') }}" method="POST" enctype="multipart/form-data">
+                    <form action="{{ url_for('transcription.upload_audio') }}" method="POST" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label for="file" class="form-label">Selecciona un archivo de audio (MP3, WAV, M4A, OGG, MP4)</label>
                             <input type="file" class="form-control" id="file" name="file" accept=".mp3,.wav,.m4a,.ogg,.mp4" required>

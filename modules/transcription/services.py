@@ -4,6 +4,7 @@ import datetime
 from openai import OpenAI
 from flask import current_app
 from werkzeug.utils import secure_filename
+from modules.utils.audio_processing import split_audio_file, combine_transcriptions, get_file_size
 
 # Cliente de OpenAI
 client = None
@@ -25,6 +26,56 @@ def transcribe_audio(file_path):
     if not client:
         raise ValueError("No se ha configurado la clave de API de OpenAI")
     
+    # Verificar el tamaño del archivo
+    file_size_bytes = get_file_size(file_path)
+    max_size_bytes = 25 * 1024 * 1024  # 25 MB en bytes
+    
+    if file_size_bytes > max_size_bytes:
+        current_app.logger.info(f"Archivo grande ({file_size_bytes/1024/1024:.2f} MB) detectado, dividiendo en segmentos...")
+        
+        # Crear carpeta temporal para segmentos
+        temp_folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "temp_segments")
+        os.makedirs(temp_folder, exist_ok=True)
+        
+        try:
+            # Dividir el archivo en segmentos de máximo 20 MB para tener margen
+            segment_paths = split_audio_file(file_path, max_size_mb=20, output_folder=temp_folder)
+            current_app.logger.info(f"Archivo dividido en {len(segment_paths)} segmentos")
+            
+            # Transcribir cada segmento
+            segment_transcriptions = []
+            for i, segment_path in enumerate(segment_paths):
+                current_app.logger.info(f"Transcribiendo segmento {i+1}/{len(segment_paths)}")
+                
+                with open(segment_path, "rb") as audio_file:
+                    transcription = client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        language="es"
+                    )
+                segment_transcriptions.append(transcription.text)
+                
+                # Eliminar el archivo del segmento después de procesarlo
+                os.remove(segment_path)
+            
+            # Combinar todas las transcripciones
+            full_transcription = combine_transcriptions(segment_transcriptions)
+            return full_transcription
+        
+        finally:
+            # Limpiar cualquier archivo temporal restante y eliminar carpeta temporal
+            if os.path.exists(temp_folder):
+                for file in os.listdir(temp_folder):
+                    try:
+                        os.remove(os.path.join(temp_folder, file))
+                    except:
+                        pass
+                try:
+                    os.rmdir(temp_folder)
+                except:
+                    pass
+    
+    # Proceso normal para archivos pequeños
     with open(file_path, "rb") as audio_file:
         transcription = client.audio.transcriptions.create(
             model="whisper-1",

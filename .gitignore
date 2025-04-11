@@ -2,3 +2,6 @@ myenv/
 transcripciones/
 uploads/
 .env
+__pycache__/
+myenv_py311/
+venv*/

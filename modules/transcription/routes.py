@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 import os
 from modules.transcription.services import process_audio_file, generate_meeting_minutes
 from modules.transcription.models import Transcription, db
+import re
 
 transcription_bp = Blueprint('transcription', __name__, url_prefix='/transcription')
 
@@ -58,7 +59,8 @@ def upload_audio():
             transcription=result["transcription_text"],
             filename=result["original_filename"],
             processing_time=result["processing_time"],
-            transcript_path=result["transcript_filename"]
+            transcript_path=result["transcript_filename"],
+            transcription_id=transcription.id  # Añadir el ID directamente
         )
     
     except Exception as e:
@@ -127,8 +129,82 @@ def history():
         user_id=current_user.id
     ).order_by(Transcription.created_at.desc()).all()
     
+    # Agregar logging para depuración
+    current_app.logger.info(f"Obtenidas {len(transcriptions)} transcripciones para el usuario {current_user.id}")
+    for t in transcriptions:
+        current_app.logger.info(f"Transcripción ID {t.id}: acta_text: {'Disponible' if t.acta_text else 'No disponible'}")
+    
     return render_template(
         'transcription/history.html', 
         title='Historial de Transcripciones',
         transcriptions=transcriptions
     )
+
+@transcription_bp.route('/save-acta', methods=["POST"])
+@login_required
+def save_acta():
+    try:
+        data = request.get_json()
+        transcription_id = data.get("transcription_id")
+        acta_text = data.get("acta_text")
+        
+        if not transcription_id or not acta_text:
+            return jsonify({"success": False, "error": "Faltan datos requeridos"})
+        
+        # Verificar que la transcripción pertenece al usuario actual
+        transcription = Transcription.query.filter_by(
+            id=transcription_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not transcription:
+            return jsonify({"success": False, "error": "Transcripción no encontrada"})
+        
+        # Tratar de limpiar el texto si viene con HTML
+        if '<br>' in acta_text:
+            # Reemplazar <br> con saltos de línea
+            acta_text = acta_text.replace('<br>', '\n')
+            # Eliminar otras etiquetas HTML
+            acta_text = re.sub(r'<[^>]*>', '', acta_text)
+        
+        # Guardar el acta en la base de datos
+        transcription.acta_text = acta_text
+        db.session.commit()
+        
+        current_app.logger.info(f"Acta guardada correctamente para transcripción ID {transcription_id}")
+        
+        return jsonify({"success": True, "message": "Acta guardada correctamente"})
+    
+    except Exception as e:
+        current_app.logger.error(f"Error al guardar el acta: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
+
+@transcription_bp.route('/get-transcription-id', methods=["POST"])
+@login_required
+def get_transcription_id():
+    """Obtiene el ID de una transcripción a partir de su path de archivo"""
+    try:
+        data = request.get_json()
+        transcript_path = data.get("transcript_path", "")
+        
+        if not transcript_path:
+            return jsonify({"success": False, "error": "No se proporcionó el path de la transcripción"})
+        
+        # Buscar la transcripción por su path de archivo
+        transcription = Transcription.query.filter_by(
+            transcript_path=transcript_path, 
+            user_id=current_user.id
+        ).first()
+        
+        if not transcription:
+            return jsonify({"success": False, "error": "Transcripción no encontrada"})
+        
+        # Devolver el ID
+        return jsonify({
+            "success": True, 
+            "transcription_id": transcription.id
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"Error al obtener ID de transcripción: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})

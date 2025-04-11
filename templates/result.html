@@ -61,76 +61,158 @@
                 <div id="actaContent" class="p-3 bg-light border rounded d-none"></div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-success" id="btnSaveActa">Guardar Acta</button>
                 <button type="button" class="btn btn-primary" id="btnCopyActa">Copiar al portapapeles</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Almacenar el ID de transcripción si está disponible -->
+{% if transcription_id %}
+<input type="hidden" id="transcriptionId" value="{{ transcription_id }}">
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Para evitar problemas de escape en Python 3.11 con Jinja2, usamos un enfoque diferente
-        // Obtenemos el texto de transcripción directamente del contenedor HTML
-        const transcriptionContainer = document.querySelector('.transcription-container');
-        const transcriptionText = transcriptionContainer ? transcriptionContainer.textContent.trim() : '';
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Para evitar problemas de escape en Python 3.11 con Jinja2, usamos un enfoque diferente
+    // Obtenemos el texto de transcripción directamente del contenedor HTML
+    const transcriptionContainer = document.querySelector('.transcription-container');
+    const transcriptionText = transcriptionContainer ? transcriptionContainer.textContent.trim() : '';
+    
+    // Variable para almacenar el ID de la transcripción actual
+    let currentTranscriptionId = document.getElementById('transcriptionId') ? 
+        document.getElementById('transcriptionId').value : null;
+    
+    // Generar acta de la transcripción
+    const btnGenerateActa = document.getElementById('btnGenerateActa');
+    btnGenerateActa.addEventListener('click', function() {
+        // Mostrar modal con indicador de carga
+        const actaModal = new bootstrap.Modal(document.getElementById('actaModal'));
+        actaModal.show();
         
-        // Generar acta de la transcripción
-        const btnGenerateActa = document.getElementById('btnGenerateActa');
-        btnGenerateActa.addEventListener('click', function() {
-            // Mostrar modal con indicador de carga
-            const actaModal = new bootstrap.Modal(document.getElementById('actaModal'));
-            actaModal.show();
+        document.getElementById('loadingActa').classList.remove('d-none');
+        document.getElementById('actaContent').classList.add('d-none');
+        document.getElementById('actaContent').innerHTML = '';
+        
+        // Llamar a la API para generar el acta
+        fetch('{{ url_for("transcription.generate_acta") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                transcription: transcriptionText
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingActa').classList.add('d-none');
+            document.getElementById('actaContent').classList.remove('d-none');
             
-            document.getElementById('loadingActa').classList.remove('d-none');
-            document.getElementById('actaContent').classList.add('d-none');
-            document.getElementById('actaContent').innerHTML = '';
+            if (data.success) {
+                document.getElementById('actaContent').innerHTML = data.acta.replace(/\n/g, '<br>');
+                
+                // Si no tenemos el ID de la transcripción, intentar obtenerlo
+                if (!currentTranscriptionId) {
+                    const transcriptPath = '{{ transcript_path }}';
+                    
+                    // Buscar la transcripción actual en la base de datos
+                    fetch('{{ url_for("transcription.get_transcription_id") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            transcript_path: transcriptPath
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            currentTranscriptionId = data.transcription_id;
+                            console.log("ID de transcripción obtenido:", currentTranscriptionId);
+                        } else {
+                            console.error("Error al obtener ID de transcripción:", data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error de conexión:", error);
+                    });
+                }
+            } else {
+                document.getElementById('actaContent').innerHTML = 
+                    `<div class="alert alert-danger">Error: ${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            document.getElementById('loadingActa').classList.add('d-none');
+            document.getElementById('actaContent').classList.remove('d-none');
+            document.getElementById('actaContent').innerHTML = 
+                `<div class="alert alert-danger">Error al generar el acta: ${error}</div>`;
+        });
+    });
+    
+    // Guardar acta en la base de datos
+    const btnSaveActa = document.getElementById('btnSaveActa');
+    if (btnSaveActa) {
+        btnSaveActa.addEventListener('click', function() {
+            // Obtener el contenido como texto plano en lugar de HTML
+            const actaContent = document.getElementById('actaContent').innerText;
             
-            // Llamar a la API para generar el acta
-            fetch('{{ url_for("transcription.generate_acta") }}', {
+            if (!currentTranscriptionId) {
+                alert('No se puede guardar el acta: No se ha encontrado el ID de la transcripción');
+                return;
+            }
+            
+            if (!actaContent) {
+                alert('No se puede guardar el acta: No hay contenido para guardar');
+                return;
+            }
+            
+            // Llamar a la API para guardar el acta
+            fetch('{{ url_for("transcription.save_acta") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    transcription: transcriptionText
+                    transcription_id: currentTranscriptionId,
+                    acta_text: actaContent
                 })
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById('loadingActa').classList.add('d-none');
-                document.getElementById('actaContent').classList.remove('d-none');
-                
                 if (data.success) {
-                    document.getElementById('actaContent').innerHTML = data.acta.replace(/\n/g, '<br>');
+                    alert('Acta guardada correctamente');
+                    // Redirigir al historial para ver el acta guardada
+                    window.location.href = '{{ url_for("transcription.history") }}';
                 } else {
-                    document.getElementById('actaContent').innerHTML = 
-                        `<div class="alert alert-danger">Error: ${data.error}</div>`;
+                    alert('Error al guardar el acta: ' + data.error);
                 }
             })
             .catch(error => {
-                document.getElementById('loadingActa').classList.add('d-none');
-                document.getElementById('actaContent').classList.remove('d-none');
-                document.getElementById('actaContent').innerHTML = 
-                    `<div class="alert alert-danger">Error al generar el acta: ${error}</div>`;
+                alert('Error de conexión: ' + error);
             });
         });
-        
-        // Copiar acta al portapapeles
-        const btnCopyActa = document.getElementById('btnCopyActa');
-        btnCopyActa.addEventListener('click', function() {
-            const actaContent = document.getElementById('actaContent').innerText;
-            navigator.clipboard.writeText(actaContent)
-                .then(() => {
-                    alert('¡Acta copiada al portapapeles!');
-                })
-                .catch(err => {
-                    console.error('Error al copiar: ', err);
-                });
-        });
+    }
+    
+    // Copiar acta al portapapeles
+    const btnCopyActa = document.getElementById('btnCopyActa');
+    btnCopyActa.addEventListener('click', function() {
+        const actaContent = document.getElementById('actaContent').innerText;
+        navigator.clipboard.writeText(actaContent)
+            .then(() => {
+                alert('¡Acta copiada al portapapeles!');
+            })
+            .catch(err => {
+                console.error('Error al copiar: ', err);
+            });
     });
+});
 </script>
 {% endblock %}
 

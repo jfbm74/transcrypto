@@ -9,6 +9,10 @@ WorkingDirectory=/home/consultoria/flask-app/transcrypto
 Environment="PATH=/home/consultoria/venv/bin"
 ExecStart=/home/consultoria/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:5000 --timeout 3600 wsgi:app
 Restart=always
+Environment="PYTHONHASHSEED=0"
+Environment="OPENSSL_CONF=/dev/null"
+Environment="OPENSSL_ENABLE_MD5_VERIFY=1"
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 [Install]
 WantedBy=multi-user.target

@@ -109,7 +109,13 @@ def generate_acta():
         transcription = data.get("transcription", "")
         
         if not transcription:
-            return jsonify({"success": False, "error": "No se proporcionó ninguna transcripción"})
+            return jsonify({"success": False, "error": "No se proporcionó ninguna transcripción", "provider": "N/A"})
+        
+        # Registrar información sobre disponibilidad de API
+        has_openai_api = bool(current_app.config.get('OPENAI_API_KEY', ''))
+        has_google_api = bool(current_app.config.get('GOOGLE_AI_API_KEY', ''))
+        
+        current_app.logger.info(f"Generando acta. APIs disponibles: OpenAI={has_openai_api}, Google AI={has_google_api}")
         
         # Llamar a la función para generar el acta
         result = generate_meeting_minutes(transcription)
@@ -119,7 +125,7 @@ def generate_acta():
     
     except Exception as e:
         current_app.logger.error(f"Error al generar el acta: {str(e)}")
-        return jsonify({"success": False, "error": str(e)})
+        return jsonify({"success": False, "error": str(e), "provider": "Error en generación"})
 
 @transcription_bp.route('/history')
 @login_required

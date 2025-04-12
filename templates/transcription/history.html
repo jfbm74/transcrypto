@@ -102,6 +102,7 @@
                     <p>Generando acta, por favor espere...</p>
                 </div>
                 <div id="actaContent" class="p-3 bg-light border rounded"></div>
+                <div id="actaProvider" class="text-muted small mt-2 text-end d-none"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-success" id="btnSaveActa">Guardar Acta</button>
@@ -161,6 +162,9 @@
                     // Si es texto plano, convertir los saltos de línea
                     document.getElementById('actaContent').innerHTML = actaText.replace(/\n/g, '<br>');
                 }
+                
+                // Ocultar el proveedor ya que no tenemos esa información para actas guardadas
+                document.getElementById('actaProvider').classList.add('d-none');
             });
         });
         
@@ -179,6 +183,7 @@
             
             document.getElementById('loadingActa').classList.remove('d-none');
             document.getElementById('actaContent').innerHTML = '';
+            document.getElementById('actaProvider').classList.add('d-none');
             
             // Llamar a la API para generar el acta
             fetch('{{ url_for("transcription.generate_acta") }}', {
@@ -195,9 +200,21 @@
                 document.getElementById('loadingActa').classList.add('d-none');
                 if (data.success) {
                     document.getElementById('actaContent').innerHTML = data.acta.replace(/\n/g, '<br>');
+                    
+                    // Mostrar información del proveedor
+                    if (data.provider) {
+                        document.getElementById('actaProvider').innerHTML = 'Generado por: ' + data.provider;
+                        document.getElementById('actaProvider').classList.remove('d-none');
+                    }
                 } else {
                     document.getElementById('actaContent').innerHTML = 
                         `<div class="alert alert-danger">Error: ${data.error}</div>`;
+                    
+                    // Mostrar información del proveedor incluso en caso de error
+                    if (data.provider) {
+                        document.getElementById('actaProvider').innerHTML = 'Intento con: ' + data.provider;
+                        document.getElementById('actaProvider').classList.remove('d-none');
+                    }
                 }
             })
             .catch(error => {

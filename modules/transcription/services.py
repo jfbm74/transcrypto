@@ -91,12 +91,14 @@ def generate_meeting_minutes(transcription):
     try:
         # Intentar con Google AI primero si está configurado
         if current_app.config.get('GOOGLE_AI_API_KEY'):
+            current_app.logger.info("Generando acta con Google AI (Gemini)")
             return generate_meeting_minutes_with_google(transcription)
         
         # Si no está configurado Google AI, usar OpenAI como fallback
+        current_app.logger.info("Generando acta con OpenAI (GPT)")
         client = initialize_openai_client()
         if not client:
-            return {"success": False, "error": "No se pudo inicializar el cliente de OpenAI"}
+            return {"success": False, "error": "No se pudo inicializar el cliente de OpenAI", "provider": "OpenAI"}
         
         # Crear el prompt para la API
         system_message = "Eres un asistente especializado en crear actas de reunión."
@@ -129,11 +131,12 @@ def generate_meeting_minutes(transcription):
         
         # Obtener la respuesta
         acta_text = response.choices[0].message.content
-        return {"success": True, "acta": acta_text}
+        current_app.logger.info("Acta generada exitosamente con OpenAI (GPT)")
+        return {"success": True, "acta": acta_text, "provider": "OpenAI (GPT-4)"}
     
     except Exception as e:
         current_app.logger.error(f"Error al generar el acta: {str(e)}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "provider": "Error en generación"}
 
 def save_uploaded_file(file, user_id):
     """Guarda un archivo subido y devuelve información sobre el mismo"""

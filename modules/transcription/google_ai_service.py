@@ -102,3 +102,22 @@ def extract_requirements_with_google(transcription):
     except Exception as e:
         current_app.logger.error(f"Error al generar documento de requerimientos con Google AI: {str(e)}")
         return {"success": False, "error": str(e), "provider": "Google AI (Gemini)"}
+
+# Mantener la función original para compatibilidad con el código existente
+def generate_meeting_minutes_with_google(transcription):
+    """
+    Función de compatibilidad que llama a extract_requirements_with_google
+    Esta función se mantiene para evitar errores de importación en el código existente
+    """
+    current_app.logger.info("Llamada a función heredada generate_meeting_minutes_with_google, redirigiendo a extract_requirements_with_google")
+    result = extract_requirements_with_google(transcription)
+    
+    # Adaptar el resultado para mantener la estructura de respuesta esperada
+    if result["success"]:
+        return {
+            "success": True,
+            "acta": result["requirements_doc"],  # Mantener la clave 'acta' para compatibilidad
+            "provider": "Google AI (Gemini)"
+        }
+    else:
+        return result

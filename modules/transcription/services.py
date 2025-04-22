@@ -138,6 +138,99 @@ def generate_meeting_minutes(transcription):
         current_app.logger.error(f"Error al generar el acta: {str(e)}")
         return {"success": False, "error": str(e), "provider": "Error en generación"}
 
+def generate_requirements(transcription):
+    """Genera un documento de requerimientos de software basado en la transcripción"""
+    try:
+        # Intentar con Google AI primero si está configurado
+        if current_app.config.get('GOOGLE_AI_API_KEY'):
+            from modules.transcription.google_ai_service import extract_requirements_with_google
+            current_app.logger.info("Generando requerimientos con Google AI (Gemini)")
+            return extract_requirements_with_google(transcription)
+        
+        # Si no está configurado Google AI, usar OpenAI como fallback
+        current_app.logger.info("Generando requerimientos con OpenAI (GPT)")
+        client = initialize_openai_client()
+        if not client:
+            return {"success": False, "error": "No se pudo inicializar el cliente de OpenAI", "provider": "OpenAI"}
+        
+        # Crear el prompt para la API
+        system_message = "Eres un ingeniero de requerimientos experimentado especializado en análisis y documentación de requisitos de software."
+        user_message = f"""
+        Actúa como un ingeniero de requerimientos experimentado especializado en análisis y documentación de requisitos de software. Tu tarea es analizar la siguiente transcripción de reunión y extraer todos los requerimientos del sistema mencionados.
+
+        INSTRUCCIONES ESPECÍFICAS:
+        1. Analiza minuciosamente la transcripción completa, sin omitir ninguna información relevante.
+        2. Identifica y categoriza claramente todos los requerimientos mencionados (explícita o implícitamente).
+        3. Distingue entre requerimientos funcionales, no funcionales y restricciones.
+        4. Asigna prioridades basadas en el énfasis y contexto de la discusión (Alta/Media/Baja).
+        5. Detecta posibles conflictos o ambigüedades entre los requerimientos.
+        6. Captura criterios de aceptación cuando se mencionen.
+        7. Identifica stakeholders relacionados con cada requerimiento.
+
+        FORMATO DEL DOCUMENTO DE REQUERIMIENTOS:
+        1. TÍTULO: "DOCUMENTO DE ESPECIFICACIÓN DE REQUERIMIENTOS"
+        2. INFORMACIÓN GENERAL:
+           - Fecha de extracción
+           - Fuente (transcripción de reunión)
+           - Contexto del proyecto (extraído de la transcripción)
+        3. STAKEHOLDERS IDENTIFICADOS:
+           - Lista de personas mencionadas y sus roles/intereses
+        4. REQUERIMIENTOS FUNCIONALES:
+           - ID único (RF-XX)
+           - Descripción clara y precisa
+           - Prioridad asignada
+           - Stakeholder(s) relacionado(s)
+           - Criterios de aceptación (si se mencionan)
+           - Dependencias con otros requerimientos (si existen)
+        5. REQUERIMIENTOS NO FUNCIONALES:
+           - ID único (RNF-XX)
+           - Categoría (Rendimiento, Seguridad, Usabilidad, etc.)
+           - Descripción clara y métrica cuando sea posible
+           - Prioridad asignada
+           - Justificación (extraída del contexto)
+        6. RESTRICCIONES TÉCNICAS Y DE NEGOCIO:
+           - ID único (RT-XX/RN-XX)
+           - Descripción
+           - Impacto en el proyecto
+        7. SOLICITUDES DE CAMBIO (RFC):
+           - ID único (RFC-XX)
+           - Descripción del cambio propuesto
+           - Justificación
+           - Impacto estimado
+           - Prioridad sugerida
+        8. SUPUESTOS Y DEPENDENCIAS:
+           - Lista de supuestos extraídos de la transcripción
+           - Dependencias externas identificadas
+        9. GLOSARIO DE TÉRMINOS:
+           - Términos técnicos o de dominio mencionados en la transcripción
+           - Definiciones extraídas del contexto
+        10. PUNTOS DE AMBIGÜEDAD:
+            - Aspectos que requieren clarificación adicional
+            - Posibles conflictos entre requerimientos
+
+        TRANSCRIPCIÓN:
+        {transcription}
+        """
+        
+        # Realizar la solicitud a la API usando el cliente de OpenAI
+        response = client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.1
+        )
+        
+        # Obtener la respuesta
+        requirements_doc = response.choices[0].message.content
+        current_app.logger.info("Documento de requerimientos generado exitosamente con OpenAI (GPT)")
+        return {"success": True, "requirements_doc": requirements_doc, "provider": "OpenAI (GPT-4)"}
+    
+    except Exception as e:
+        current_app.logger.error(f"Error al generar el documento de requerimientos: {str(e)}")
+        return {"success": False, "error": str(e), "provider": "Error en generación"}
+
 def save_uploaded_file(file, user_id):
     """Guarda un archivo subido y devuelve información sobre el mismo"""
     # Crear un nombre de archivo seguro con timestamp

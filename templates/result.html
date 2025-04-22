@@ -35,7 +35,10 @@
                         <a href="{{ url_for('transcription.download_transcript', filename=transcript_path) }}" class="btn btn-primary me-2">
                             Descargar transcripción
                         </a>
-                        <button id="btnGenerateActa" class="btn btn-secondary">Generar acta de reunión</button>
+                        <div class="btn-group">
+                            <button id="btnGenerateActa" class="btn btn-secondary">Generar acta de reunión</button>
+                            <button id="btnGenerateRequirements" class="btn btn-info">Generar requerimientos</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -48,7 +51,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Acta Generada</h5>
+                <h5 class="modal-title" id="documentTitle">Acta Generada</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -56,13 +59,13 @@
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Cargando...</span>
                     </div>
-                    <p>Generando acta, por favor espere...</p>
+                    <p>Generando documento, por favor espere...</p>
                 </div>
                 <div id="actaContent" class="p-3 bg-light border rounded d-none"></div>
                 <div id="actaProvider" class="text-muted small mt-2 text-end d-none"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-success" id="btnSaveActa">Guardar Acta</button>
+                <button type="button" class="btn btn-success" id="btnSaveActa">Guardar documento</button>
                 <button type="button" class="btn btn-primary" id="btnCopyActa">Copiar al portapapeles</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
@@ -88,9 +91,18 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentTranscriptionId = document.getElementById('transcriptionId') ? 
         document.getElementById('transcriptionId').value : null;
     
-    // Generar acta de la transcripción
-    const btnGenerateActa = document.getElementById('btnGenerateActa');
-    btnGenerateActa.addEventListener('click', function() {
+    // Variable para almacenar el tipo de documento
+    let documentType = 'acta';
+    
+    // Función para generar documento (acta o requerimientos)
+    function generateDocument(type) {
+        // Actualizar tipo de documento
+        documentType = type;
+        
+        // Actualizar título del modal según el tipo
+        const title = type === 'acta' ? 'Acta Generada' : 'Documento de Requerimientos';
+        document.getElementById('documentTitle').textContent = title;
+        
         // Mostrar modal con indicador de carga
         const actaModal = new bootstrap.Modal(document.getElementById('actaModal'));
         actaModal.show();
@@ -101,14 +113,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('actaContent').innerHTML = '';
         document.getElementById('actaProvider').innerHTML = '';
         
-        // Llamar a la API para generar el acta
-        fetch('{{ url_for("transcription.generate_acta") }}', {
+        // Llamar a la API para generar el documento
+        fetch('{{ url_for("transcription.generate_document") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                transcription: transcriptionText
+                transcription: transcriptionText,
+                document_type: type
             })
         })
         .then(response => response.json())
@@ -117,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('actaContent').classList.remove('d-none');
             
             if (data.success) {
-                document.getElementById('actaContent').innerHTML = data.acta.replace(/\n/g, '<br>');
+                document.getElementById('actaContent').innerHTML = data.content.replace(/\n/g, '<br>');
                 
                 // Mostrar información del proveedor
                 if (data.provider) {
@@ -167,11 +180,23 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('loadingActa').classList.add('d-none');
             document.getElementById('actaContent').classList.remove('d-none');
             document.getElementById('actaContent').innerHTML = 
-                `<div class="alert alert-danger">Error al generar el acta: ${error}</div>`;
+                `<div class="alert alert-danger">Error al generar el documento: ${error}</div>`;
         });
+    }
+    
+    // Generar acta de reunión
+    const btnGenerateActa = document.getElementById('btnGenerateActa');
+    btnGenerateActa.addEventListener('click', function() {
+        generateDocument('acta');
     });
     
-    // Guardar acta en la base de datos
+    // Generar documento de requerimientos
+    const btnGenerateRequirements = document.getElementById('btnGenerateRequirements');
+    btnGenerateRequirements.addEventListener('click', function() {
+        generateDocument('requirements');
+    });
+    
+    // Guardar documento en la base de datos
     const btnSaveActa = document.getElementById('btnSaveActa');
     if (btnSaveActa) {
         btnSaveActa.addEventListener('click', function() {
@@ -179,16 +204,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const actaContent = document.getElementById('actaContent').innerText;
             
             if (!currentTranscriptionId) {
-                alert('No se puede guardar el acta: No se ha encontrado el ID de la transcripción');
+                alert('No se puede guardar el documento: No se ha encontrado el ID de la transcripción');
                 return;
             }
             
             if (!actaContent) {
-                alert('No se puede guardar el acta: No hay contenido para guardar');
+                alert('No se puede guardar el documento: No hay contenido para guardar');
                 return;
             }
             
-            // Llamar a la API para guardar el acta
+            // Llamar a la API para guardar el documento
             fetch('{{ url_for("transcription.save_acta") }}', {
                 method: 'POST',
                 headers: {
@@ -196,17 +221,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     transcription_id: currentTranscriptionId,
-                    acta_text: actaContent
+                    acta_text: actaContent,
+                    document_type: documentType
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Acta guardada correctamente');
-                    // Redirigir al historial para ver el acta guardada
+                    alert('Documento guardado correctamente');
+                    // Redirigir al historial para ver el documento guardado
                     window.location.href = '{{ url_for("transcription.history") }}';
                 } else {
-                    alert('Error al guardar el acta: ' + data.error);
+                    alert('Error al guardar el documento: ' + data.error);
                 }
             })
             .catch(error => {
@@ -215,13 +241,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Copiar acta al portapapeles
+    // Copiar documento al portapapeles
     const btnCopyActa = document.getElementById('btnCopyActa');
     btnCopyActa.addEventListener('click', function() {
         const actaContent = document.getElementById('actaContent').innerText;
         navigator.clipboard.writeText(actaContent)
             .then(() => {
-                alert('¡Acta copiada al portapapeles!');
+                alert('¡Documento copiado al portapapeles!');
             })
             .catch(err => {
                 console.error('Error al copiar: ', err);

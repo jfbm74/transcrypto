@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app
 from flask_login import login_required, current_user
 import os
-from modules.transcription.services import process_audio_file, generate_meeting_minutes
+from modules.transcription.services import process_audio_file, generate_meeting_minutes, generate_requirements
 from modules.transcription.models import Transcription, db
 import re
 
@@ -46,7 +46,7 @@ def upload_audio():
             user_id=current_user.id,
             original_filename=result["original_filename"],
             file_path=result["file_path"],
-            transcript_path=result["transcript_filename"],
+            transcript_path=result["transcript_path"],
             transcript_text=result["transcription_text"],
             processing_time=result["processing_time"]
         )
@@ -59,7 +59,7 @@ def upload_audio():
             transcription=result["transcription_text"],
             filename=result["original_filename"],
             processing_time=result["processing_time"],
-            transcript_path=result["transcript_filename"],
+            transcript_path=result["transcript_path"],
             transcription_id=transcription.id  # Añadir el ID directamente
         )
     
@@ -100,13 +100,14 @@ def download_transcript(filename):
         flash(f"Error al descargar el archivo: {str(e)}")
         return redirect(url_for("index"))
 
-@transcription_bp.route('/generate-acta', methods=["POST"])
+@transcription_bp.route('/generate-document', methods=["POST"])
 @login_required
-def generate_acta():
-    # Obtener la transcripción de la solicitud
+def generate_document():
+    # Obtener la transcripción y el tipo de documento de la solicitud
     try:
         data = request.get_json()
         transcription = data.get("transcription", "")
+        document_type = data.get("document_type", "acta")  # Por defecto es acta
         
         if not transcription:
             return jsonify({"success": False, "error": "No se proporcionó ninguna transcripción", "provider": "N/A"})
@@ -115,36 +116,27 @@ def generate_acta():
         has_openai_api = bool(current_app.config.get('OPENAI_API_KEY', ''))
         has_google_api = bool(current_app.config.get('GOOGLE_AI_API_KEY', ''))
         
-        current_app.logger.info(f"Generando acta. APIs disponibles: OpenAI={has_openai_api}, Google AI={has_google_api}")
+        current_app.logger.info(f"Generando {document_type}. APIs disponibles: OpenAI={has_openai_api}, Google AI={has_google_api}")
         
-        # Llamar a la función para generar el acta
-        result = generate_meeting_minutes(transcription)
+        # Llamar a la función correspondiente según el tipo de documento
+        if document_type == 'requirements':
+            result = generate_requirements(transcription)
+        else:  # Por defecto, generar acta
+            result = generate_meeting_minutes(transcription)
         
-        # Devolver la respuesta
-        return jsonify(result)
+        # Devolver la respuesta con el mismo formato que antes, pero en campo content en vez de acta
+        response = {
+            "success": result.get("success", False),
+            "content": result.get("acta") or result.get("requirements_doc") or "",
+            "provider": result.get("provider", "Desconocido"),
+            "error": result.get("error", "")
+        }
+        
+        return jsonify(response)
     
     except Exception as e:
-        current_app.logger.error(f"Error al generar el acta: {str(e)}")
+        current_app.logger.error(f"Error al generar el documento: {str(e)}")
         return jsonify({"success": False, "error": str(e), "provider": "Error en generación"})
-
-@transcription_bp.route('/history')
-@login_required
-def history():
-    # Obtener todas las transcripciones del usuario actual
-    transcriptions = Transcription.query.filter_by(
-        user_id=current_user.id
-    ).order_by(Transcription.created_at.desc()).all()
-    
-    # Agregar logging para depuración
-    current_app.logger.info(f"Obtenidas {len(transcriptions)} transcripciones para el usuario {current_user.id}")
-    for t in transcriptions:
-        current_app.logger.info(f"Transcripción ID {t.id}: acta_text: {'Disponible' if t.acta_text else 'No disponible'}")
-    
-    return render_template(
-        'transcription/history.html', 
-        title='Historial de Transcripciones',
-        transcriptions=transcriptions
-    )
 
 @transcription_bp.route('/save-acta', methods=["POST"])
 @login_required
@@ -153,6 +145,7 @@ def save_acta():
         data = request.get_json()
         transcription_id = data.get("transcription_id")
         acta_text = data.get("acta_text")
+        document_type = data.get("document_type", "acta")  # Incluir el tipo de documento
         
         if not transcription_id or not acta_text:
             return jsonify({"success": False, "error": "Faltan datos requeridos"})
@@ -173,17 +166,37 @@ def save_acta():
             # Eliminar otras etiquetas HTML
             acta_text = re.sub(r'<[^>]*>', '', acta_text)
         
-        # Guardar el acta en la base de datos
+        # Guardar el acta en la base de datos y el tipo de documento
         transcription.acta_text = acta_text
+        transcription.document_type = document_type  # Guardar el tipo de documento
         db.session.commit()
         
-        current_app.logger.info(f"Acta guardada correctamente para transcripción ID {transcription_id}")
+        current_app.logger.info(f"Documento tipo {document_type} guardado correctamente para transcripción ID {transcription_id}")
         
-        return jsonify({"success": True, "message": "Acta guardada correctamente"})
+        return jsonify({"success": True, "message": "Documento guardado correctamente"})
     
     except Exception as e:
-        current_app.logger.error(f"Error al guardar el acta: {str(e)}")
+        current_app.logger.error(f"Error al guardar el documento: {str(e)}")
         return jsonify({"success": False, "error": str(e)})
+
+@transcription_bp.route('/history')
+@login_required
+def history():
+    # Obtener todas las transcripciones del usuario actual
+    transcriptions = Transcription.query.filter_by(
+        user_id=current_user.id
+    ).order_by(Transcription.created_at.desc()).all()
+    
+    # Agregar logging para depuración
+    current_app.logger.info(f"Obtenidas {len(transcriptions)} transcripciones para el usuario {current_user.id}")
+    for t in transcriptions:
+        current_app.logger.info(f"Transcripción ID {t.id}: acta_text: {'Disponible' if t.acta_text else 'No disponible'}")
+    
+    return render_template(
+        'transcription/history.html', 
+        title='Historial de Transcripciones',
+        transcriptions=transcriptions
+    )
 
 @transcription_bp.route('/get-transcription-id', methods=["POST"])
 @login_required

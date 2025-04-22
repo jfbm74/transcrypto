@@ -10,6 +10,7 @@ class Transcription(db.Model):
     transcript_path = db.Column(sa.String(255), nullable=False)
     transcript_text = db.Column(sa.Text)
     acta_text = db.Column(sa.Text, nullable=True)
+    document_type = db.Column(sa.String(20), default='acta')  # Nueva columna
     processing_time = db.Column(sa.Float)
     created_at = db.Column(sa.DateTime, default=datetime.utcnow)
     

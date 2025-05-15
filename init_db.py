@@ -8,6 +8,10 @@ import sys
 from flask import Flask
 from config import Config
 from modules.auth.models import db, User
+# Importar explícitamente todos los modelos que necesitan ser creados
+from modules.transcription.models import Transcription
+from modules.subscription.models import Subscription
+import modules.models  # Importa las relaciones entre modelos
 
 def init_database():
     """Inicializa la base de datos y crea un usuario admin"""

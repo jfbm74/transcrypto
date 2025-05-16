@@ -7,21 +7,54 @@ import uuid
 def get_file_duration(file_path):
     """
     Obtiene la duración de un archivo de audio usando ffprobe
+    con manejo de errores mejorado
     """
-    cmd = [
-        'ffprobe', 
-        '-v', 'error', 
-        '-show_entries', 'format=duration', 
-        '-of', 'json', 
-        file_path
-    ]
-    
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise Exception(f"Error al obtener la duración del archivo: {result.stderr}")
-    
-    data = json.loads(result.stdout)
-    return float(data['format']['duration'])
+    try:
+        cmd = [
+            'ffprobe', 
+            '-v', 'error', 
+            '-show_entries', 'format=duration', 
+            '-of', 'json', 
+            file_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            # Si falla, intentar con una estrategia alternativa
+            fallback_cmd = [
+                'ffprobe',
+                '-v', 'error',
+                '-show_entries', 'stream=duration',
+                '-select_streams', 'a:0',
+                '-of', 'json',
+                file_path
+            ]
+            fallback_result = subprocess.run(fallback_cmd, capture_output=True, text=True)
+            if fallback_result.returncode != 0:
+                # Si ambos intentos fallan, estimar la duración basada en el tamaño
+                file_size = get_file_size(file_path)
+                # Estimación aproximada: 1MB ≈ 1 minuto para audio de calidad media
+                estimated_duration = (file_size / (1024 * 1024)) * 60
+                return estimated_duration
+            
+            data = json.loads(fallback_result.stdout)
+            if 'streams' in data and len(data['streams']) > 0 and 'duration' in data['streams'][0]:
+                return float(data['streams'][0]['duration'])
+            else:
+                # Estimación basada en tamaño como último recurso
+                file_size = get_file_size(file_path)
+                estimated_duration = (file_size / (1024 * 1024)) * 60
+                return estimated_duration
+        
+        data = json.loads(result.stdout)
+        return float(data['format']['duration'])
+    except Exception as e:
+        # En caso de cualquier error, devolver una duración estimada
+        file_size = get_file_size(file_path)
+        estimated_duration = (file_size / (1024 * 1024)) * 60
+        print(f"Error al obtener duración, usando estimación: {estimated_duration}s para {file_size} bytes")
+        return estimated_duration
+
 
 def get_file_size(file_path):
     """

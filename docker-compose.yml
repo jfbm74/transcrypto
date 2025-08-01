@@ -12,8 +12,8 @@ services:
       - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
       - FREE_TRANSCRIPTIONS_LIMIT=${FREE_TRANSCRIPTIONS_LIMIT:-10}
     volumes:
-      # Base de datos SQLite persistente
-      - ./app.db:/app/app.db
+      # Base de datos SQLite persistente usando volumen nombrado
+      - db_data:/app
       # Archivos subidos persistentes
       - uploads_data:/app/uploads
       - transcriptions_data:/app/transcripciones
@@ -26,5 +26,6 @@ services:
       start_period: 40s
 
 volumes:
+  db_data:
   uploads_data:
   transcriptions_data:

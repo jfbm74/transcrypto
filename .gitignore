@@ -9,3 +9,4 @@ venv*/
 app.db
 instance/app.db
 *.db
+app.db

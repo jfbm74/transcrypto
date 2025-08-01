@@ -62,6 +62,20 @@ def generate_meeting_minutes_with_google(transcription):
         - Resumen ejecutivo de los resultados de la reunión
         - Próximos pasos claramente definidos
 
+        # Añade estas instrucciones en la sección "FORMATO DEL ACTA" del prompt
+
+        - Asegúrate de incluir CITAS TEXTUALES RELEVANTES bajo cada punto tratado, para proporcionar contexto de las decisiones.
+
+        - Para la sección "ACUERDOS Y COMPROMISOS", utiliza SIEMPRE el siguiente formato de tabla markdown:
+        | Tarea | Responsable | Fecha Límite | Entregable |
+        |-------|-------------|--------------|------------|
+        | [Descripción clara de la tarea] | [Nombre del responsable] | [Fecha específica, nunca "Sin fecha límite"] | [Producto o resultado esperado] |
+
+        - Al describir las fechas límite, utiliza términos específicos como: "Esta semana", "Próximo sprint", "Próxima reunión", "15 días", "Mañana", "Fin de mes", etc. NUNCA dejes fechas sin especificar.
+
+        - Para cada tarea, define un ENTREGABLE concreto y medible que permita verificar su cumplimiento.
+        
+
         TRANSCRIPCIÓN:
         {transcription}
 

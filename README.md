@@ -1,15 +1,21 @@
 # ZentraText de Audio
 
-Esta aplicación permite transcribir archivos de audio a texto utilizando la API de OpenAI (Whisper) y generar actas de reunión a partir de las transcripciones utilizando GPT-4.
+Aplicación web Flask para transcripción de audio a texto con IA, que permite convertir archivos de audio a texto y generar documentos estructurados como actas de reunión y documentos de requerimientos de software.
 
-## Características
+## ✨ Características Principales
 
-- Autenticación de usuarios (registro, inicio de sesión, perfil)
-- Transcripción de archivos de audio (MP3, WAV, M4A, OGG, MP4)
-- Generación de actas de reunión a partir de transcripciones
-- Historial de transcripciones por usuario
-- Límite de 10 transcripciones gratuitas por usuario
-- Estructura modular para fácil mantenimiento y extensión
+- **🔐 Autenticación completa**: Registro, inicio de sesión y gestión de perfiles
+- **🎵 Transcripción multi-formato**: Soporte para MP3, WAV, M4A, OGG, MP4
+- **🤖 Doble proveedor de IA**: 
+  - OpenAI Whisper + GPT-4 (principal)
+  - Google AI Gemini (alternativo/respaldo)
+- **📝 Generación de documentos**:
+  - Actas de reunión con identificación de participantes
+  - Documentos de requerimientos de software
+- **📊 Historial de transcripciones** por usuario
+- **💰 Modelo freemium**: 10 transcripciones gratuitas por usuario
+- **📁 Archivos grandes**: División automática para archivos >25MB
+- **🏗️ Arquitectura modular** con Blueprints de Flask
 
 ## Estructura del Proyecto
 
@@ -26,50 +32,97 @@ La aplicación está organizada de forma modular para facilitar su mantenimiento
 - `uploads/`: Carpeta para archivos de audio subidos
 - `transcripciones/`: Carpeta para guardar las transcripciones
 
-## Instalación
+## 🚀 Instalación y Configuración
 
-1. Clonar el repositorio
-2. Crear un entorno virtual:
+### Prerrequisitos
+- Python 3.8+
+- Cuenta OpenAI con API Key (opcional: Google AI API Key)
+
+### Instalación
+
+1. **Clonar el repositorio**
+   ```bash
+   git clone <repository-url>
+   cd transcripto
    ```
+
+2. **Crear entorno virtual**
+   ```bash
    python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
+   source venv/bin/activate  # Windows: venv\Scripts\activate
    ```
-3. Instalar las dependencias:
-   ```
+
+3. **Instalar dependencias**
+   ```bash
    pip install -r requirements.txt
    ```
-4. Configurar las variables de entorno en el archivo `.env`:
-   ```
-   SECRET_KEY=tu_clave_secreta
-   DATABASE_URI=sqlite:///instance/app.db
+
+4. **Configurar variables de entorno**
+   
+   Crear archivo `.env` en la raíz del proyecto:
+   ```env
+   SECRET_KEY=tu_clave_secreta_muy_segura
    OPENAI_API_KEY=tu_clave_api_openai
+   GOOGLE_AI_API_KEY=tu_clave_api_google_ai  # Opcional
    ```
-5. Inicializar la base de datos:
-   ```
+
+5. **Inicializar base de datos**
+   ```bash
    flask db init
-   flask db migrate -m "Initial migration."
+   flask db migrate -m "Initial migration"
    flask db upgrade
    ```
-6. Ejecutar la aplicación:
-   ```
+
+6. **Ejecutar aplicación**
+   ```bash
    python app.py
    ```
 
-## Uso
+La aplicación estará disponible en `http://localhost:5000`
 
-1. Registrarse o iniciar sesión en la aplicación
-2. Configurar la clave de API de OpenAI en la sección "Configuración API"
-3. Subir un archivo de audio para transcribirlo
-4. Ver la transcripción y descargarla o generar un acta de reunión
-5. Acceder al historial de transcripciones desde el menú superior
+## 📖 Uso
 
-## Futuras Mejoras
+1. **Registro/Inicio de sesión**
+   - Crear cuenta nueva o acceder con credenciales existentes
 
-- Sistema de suscripción para permitir más transcripciones
-- Soporte para más idiomas
-- Mejoras en la generación de actas de reunión
-- Panel de administración para gestionar usuarios y transcripciones
-- Exportación de transcripciones en diferentes formatos (PDF, DOCX, etc.)
+2. **Configuración de API**
+   - Acceder a "Configuración API" desde el menú
+   - Configurar clave OpenAI (obligatorio) y/o Google AI (opcional)
+
+3. **Transcripción de audio**
+   - Subir archivo de audio (formatos soportados: MP3, WAV, M4A, OGG, MP4)
+   - El sistema maneja automáticamente archivos grandes (>25MB)
+   - Esperar a que complete la transcripción
+
+4. **Generación de documentos**
+   - Ver transcripción en texto plano
+   - Generar acta de reunión estructurada
+   - Crear documento de requerimientos de software
+   - Descargar documentos generados
+
+5. **Historial**
+   - Acceder al historial de transcripciones desde el menú superior
+   - Revisar transcripciones anteriores y documentos generados
+
+## 🛠️ Tecnologías Utilizadas
+
+- **Backend**: Flask, SQLAlchemy, Flask-Login, Flask-Migrate
+- **Base de datos**: SQLite
+- **IA**: OpenAI Whisper & GPT-4, Google AI Gemini
+- **Procesamiento de audio**: PyDub
+- **Frontend**: HTML5, Bootstrap 5, JavaScript
+- **Despliegue**: Gunicorn, SystemD
+
+## 🔄 Roadmap y Futuras Mejoras
+
+- [ ] Sistema de suscripción Premium
+- [ ] Soporte multiidioma (detección automática)
+- [ ] Panel de administración avanzado
+- [ ] Exportación a PDF, DOCX, y otros formatos
+- [ ] API REST para integraciones
+- [ ] Procesamiento en lotes
+- [ ] Análisis de sentimientos en transcripciones
+- [ ] Integración con servicios de almacenamiento en la nube
 
 ## Licencia
 

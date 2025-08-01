@@ -24,6 +24,6 @@ class Config:
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
     
     # Límites de transcripción
-    FREE_TRANSCRIPTIONS_LIMIT = 10
+    FREE_TRANSCRIPTIONS_LIMIT = int(os.environ.get('FREE_TRANSCRIPTIONS_LIMIT', 10))
 
     GOOGLE_AI_API_KEY = os.environ.get("GOOGLE_AI_API_KEY", "")

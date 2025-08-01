@@ -37,3 +37,4 @@ urllib3==1.26.20
 Werkzeug==2.2.3
 WTForms==3.2.1
 google-generativeai==0.3.1
+gunicorn==21.2.0

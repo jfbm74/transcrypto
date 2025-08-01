@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  transcripto-app:
+    build: .
+    ports:
+      - "5001:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - FREE_TRANSCRIPTIONS_LIMIT=${FREE_TRANSCRIPTIONS_LIMIT:-10}
+    volumes:
+      # Base de datos SQLite persistente
+      - ./app.db:/app/app.db
+      # Archivos subidos persistentes
+      - uploads_data:/app/uploads
+      - transcriptions_data:/app/transcripciones
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  uploads_data:
+  transcriptions_data:

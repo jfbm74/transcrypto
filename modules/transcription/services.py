@@ -39,8 +39,8 @@ def transcribe_audio(file_path):
         os.makedirs(temp_folder, exist_ok=True)
         
         try:
-            # Dividir el archivo en segmentos de máximo 20 MB para tener margen
-            segment_paths = split_audio_file(file_path, max_size_mb=20, output_folder=temp_folder)
+            # Dividir el archivo en segmentos de máximo 10 MB para tener margen
+            segment_paths = split_audio_file(file_path, max_size_mb=10, output_folder=temp_folder)
             current_app.logger.info(f"Archivo dividido en {len(segment_paths)} segmentos")
             
             # Transcribir cada segmento

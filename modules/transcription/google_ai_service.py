@@ -115,7 +115,7 @@ def extract_requirements_with_google(transcription):
         
         # Crear el prompt para el modelo
         prompt = f"""
-        Actúa como un ingeniero de requerimientos experimentado especializado en análisis y documentación de requisitos de software. Tu tarea es analizar la siguiente transcripción de reunión y extraer todos los requerimientos del sistema mencionados.
+        Actúa como un ingeniero de requerimientos y experto Arquitecto de Software experimentado especializado en análisis y documentación de requisitos de software. Tu tarea es analizar la siguiente transcripción de reunión y extraer todos los requerimientos del sistema mencionados.
 
         INSTRUCCIONES ESPECÍFICAS:
         1. Analiza minuciosamente la transcripción completa, sin omitir ninguna información relevante.

@@ -6,7 +6,8 @@
       "Bash(echo $OPENAI_API_KEY)",
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

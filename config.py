@@ -12,7 +12,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'supersecretkey')
     
     # Configuración de la base de datos con ruta absoluta simple
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'app.db')
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'db', 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Configuración para la aplicación de transcripción

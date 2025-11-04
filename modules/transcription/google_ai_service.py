@@ -19,7 +19,7 @@ def generate_meeting_minutes_with_google(transcription):
         initialize_google_ai_client()
         
         # Configurar el modelo - usar un modelo adecuado para textos extensos
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        model = genai.GenerativeModel('models/gemini-2.5-pro')
 
         # Configuración optimizada para generar actas más detalladas
         generation_config = {
@@ -103,7 +103,7 @@ def extract_requirements_with_google(transcription):
         initialize_google_ai_client()
         
         # Configurar el modelo - usar un modelo adecuado para textos extensos
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        model = genai.GenerativeModel('models/gemini-2.5-pro')
 
         # Configuración optimizada para análisis de requisitos preciso
         generation_config = {

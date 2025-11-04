@@ -21,9 +21,9 @@ def upload_audio():
         return redirect(url_for("index"))
 
     # Verificar la extensión del archivo
-    allowed_extensions = {'mp3', 'wav', 'm4a', 'ogg', 'mp4'}
+    allowed_extensions = {'mp3', 'wav', 'm4a', 'ogg', 'mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm'}
     if not '.' in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
-        flash("Formato de archivo no soportado. Por favor, sube un archivo MP3, WAV, M4A, OGG o MP4.")
+        flash("Formato de archivo no soportado. Por favor, sube un archivo de audio (MP3, WAV, M4A, OGG) o video (MP4, AVI, MOV, MKV, FLV, WMV, WEBM).")
         return redirect(url_for("index"))
 
     # Verificar si tenemos la clave API configurada

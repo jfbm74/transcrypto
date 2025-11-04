@@ -4,7 +4,7 @@ import datetime
 from openai import OpenAI
 from flask import current_app
 from werkzeug.utils import secure_filename
-from modules.utils.audio_processing import split_audio_file, combine_transcriptions, get_file_size
+from modules.utils.audio_processing import split_audio_file, combine_transcriptions, get_file_size, detect_file_type, convert_video_to_audio
 from modules.transcription.google_ai_service import generate_meeting_minutes_with_google
 
 # Cliente de OpenAI
@@ -279,19 +279,50 @@ def process_audio_file(file, user_id):
     """Procesa un archivo de audio: guarda, transcribe y almacena la transcripción"""
     # Guardar el archivo
     file_info = save_uploaded_file(file, user_id)
-    
+
+    # Detectar tipo de archivo
+    file_type, file_ext = detect_file_type(file_info["filepath"])
+    current_app.logger.info(f"Tipo de archivo detectado: {file_type} ({file_ext})")
+
+    # Si es un video, convertirlo a audio primero
+    audio_file_path = file_info["filepath"]
+    converted_from_video = False
+
+    if file_type == 'video':
+        current_app.logger.info(f"Convirtiendo video a audio: {file_info['original_filename']}")
+        try:
+            audio_file_path = convert_video_to_audio(
+                file_info["filepath"],
+                output_folder=current_app.config["UPLOAD_FOLDER"],
+                output_format='mp3'
+            )
+            converted_from_video = True
+            current_app.logger.info(f"Video convertido exitosamente a: {audio_file_path}")
+        except Exception as e:
+            current_app.logger.error(f"Error al convertir video a audio: {str(e)}")
+            raise Exception(f"No se pudo convertir el video a audio: {str(e)}")
+
     # Transcribir el audio
     start_time = time.time()
-    transcription_text = transcribe_audio(file_info["filepath"])
+    transcription_text = transcribe_audio(audio_file_path)
     processing_time = time.time() - start_time
-    
+
     # Guardar la transcripción
     transcription_info = save_transcription(
-        transcription_text, 
+        transcription_text,
         file_info["original_filename"],
         user_id
     )
-    
+
+    # Limpiar archivo de audio temporal si fue convertido desde video
+    if converted_from_video and audio_file_path != file_info["filepath"]:
+        try:
+            if os.path.exists(audio_file_path):
+                os.remove(audio_file_path)
+                current_app.logger.info(f"Archivo de audio temporal eliminado: {audio_file_path}")
+        except Exception as e:
+            current_app.logger.warning(f"No se pudo eliminar archivo temporal: {str(e)}")
+
     # Devolver toda la información
     return {
         "original_filename": file_info["original_filename"],
@@ -299,5 +330,6 @@ def process_audio_file(file, user_id):
         "transcript_path": transcription_info["transcript_path"],
         "transcript_filename": transcription_info["transcript_filename"],
         "transcription_text": transcription_text,
-        "processing_time": round(processing_time, 2)
+        "processing_time": round(processing_time, 2),
+        "was_video": converted_from_video
     }

@@ -3,6 +3,7 @@ import subprocess
 import json
 import math
 import uuid
+import mimetypes
 
 def get_file_duration(file_path):
     """
@@ -123,11 +124,115 @@ def split_audio_file(file_path, max_size_mb=24, output_folder=None):
 def combine_transcriptions(transcriptions):
     """
     Combina múltiples transcripciones en una sola.
-    
+
     Args:
         transcriptions: Lista de textos transcritos
-        
+
     Returns:
         Texto combinado
     """
     return " ".join(transcriptions)
+
+def detect_file_type(file_path):
+    """
+    Detecta el tipo de archivo (audio o video) usando ffprobe.
+
+    Args:
+        file_path: Ruta al archivo a analizar
+
+    Returns:
+        Tupla (tipo, extensión) donde tipo es 'audio', 'video' o 'unknown'
+    """
+    try:
+        # Primero intentar con la extensión
+        _, ext = os.path.splitext(file_path)
+        ext = ext.lower()
+
+        # Extensiones de video comunes
+        video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'}
+        # Extensiones de audio comunes
+        audio_extensions = {'.mp3', '.wav', '.m4a', '.ogg', '.flac', '.aac', '.wma'}
+
+        # Verificar con ffprobe para mayor precisión
+        cmd = [
+            'ffprobe',
+            '-v', 'error',
+            '-show_entries', 'stream=codec_type',
+            '-of', 'json',
+            file_path
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            if 'streams' in data:
+                has_video = any(s.get('codec_type') == 'video' for s in data['streams'])
+                has_audio = any(s.get('codec_type') == 'audio' for s in data['streams'])
+
+                if has_video:
+                    return ('video', ext)
+                elif has_audio:
+                    return ('audio', ext)
+
+        # Fallback: usar extensión
+        if ext in video_extensions:
+            return ('video', ext)
+        elif ext in audio_extensions:
+            return ('audio', ext)
+
+        return ('unknown', ext)
+
+    except Exception as e:
+        print(f"Error al detectar tipo de archivo: {str(e)}")
+        # Fallback: intentar con mimetypes
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if mime_type:
+            if mime_type.startswith('video/'):
+                return ('video', ext)
+            elif mime_type.startswith('audio/'):
+                return ('audio', ext)
+
+        return ('unknown', ext)
+
+def convert_video_to_audio(video_path, output_folder=None, output_format='mp3'):
+    """
+    Convierte un archivo de video a audio (MP3) extrayendo la pista de audio.
+
+    Args:
+        video_path: Ruta al archivo de video
+        output_folder: Carpeta donde guardar el archivo de audio (por defecto, la misma que el video)
+        output_format: Formato de salida (por defecto 'mp3')
+
+    Returns:
+        Ruta al archivo de audio generado
+    """
+    if output_folder is None:
+        output_folder = os.path.dirname(video_path)
+
+    # Crear nombre de archivo de salida
+    base_name = os.path.splitext(os.path.basename(video_path))[0]
+    output_filename = f"{base_name}_audio.{output_format}"
+    output_path = os.path.join(output_folder, output_filename)
+
+    try:
+        # Comando ffmpeg para extraer audio
+        cmd = [
+            'ffmpeg',
+            '-y',  # Sobrescribir archivo si existe
+            '-i', video_path,
+            '-vn',  # No video (solo audio)
+            '-acodec', 'libmp3lame' if output_format == 'mp3' else 'copy',
+            '-q:a', '2',  # Calidad de audio (2 es alta calidad para MP3)
+            output_path
+        ]
+
+        # Ejecutar comando
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise Exception(f"Error al convertir video a audio: {result.stderr}")
+
+        return output_path
+
+    except Exception as e:
+        raise Exception(f"Error durante la conversión de video a audio: {str(e)}")

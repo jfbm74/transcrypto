@@ -6,7 +6,13 @@
       "Bash(echo $OPENAI_API_KEY)",
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(git checkout:*)",
+      "WebSearch",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd video-to-audio conversion support\n\n- Add support for multiple video formats (MP4, AVI, MOV, MKV, FLV, WMV, WEBM)\n- Implement automatic video-to-audio conversion using FFmpeg\n- Add file type detection using ffprobe and mimetypes\n- Update audio processing utilities with new conversion functions\n- Automatic cleanup of temporary audio files after transcription\n- Update Google AI service to use gemini-2.5-pro model\n- Update documentation with FFmpeg dependency and new features\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []

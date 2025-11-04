@@ -11,6 +11,18 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+**System Dependencies** (Required for video/audio processing):
+```bash
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# macOS
+brew install ffmpeg
+
+# Windows
+# Download from https://ffmpeg.org/download.html
+```
+
 **Database Operations**:
 ```bash
 flask db init          # Initialize migrations (first time only)
@@ -47,9 +59,12 @@ python app.py          # Development server on http://localhost:5000
 - Transcription model: File metadata, processing results, generated documents
 
 **File Processing**:
-- Supported formats: MP3, WAV, M4A, OGG, MP4
-- Large file handling: Automatic splitting for files >25MB using PyDub
-- Storage: `uploads/` for audio, `transcripciones/` for text output
+- Supported audio formats: MP3, WAV, M4A, OGG
+- Supported video formats: MP4, AVI, MOV, MKV, FLV, WMV, WEBM
+- Video-to-audio conversion: Automatic extraction of audio track from video files using FFmpeg
+- Large file handling: Automatic splitting for files >25MB using FFmpeg
+- Storage: `uploads/` for audio/video, `transcripciones/` for text output
+- Video files are automatically converted to MP3 before transcription, then the temporary audio file is cleaned up
 
 ## Configuration
 

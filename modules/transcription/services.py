@@ -86,16 +86,25 @@ def transcribe_audio(file_path):
     
     return transcription.text
 
-def generate_meeting_minutes(transcription):
-    """Genera un acta de reunión basada en la transcripción"""
+def generate_meeting_minutes(transcription, user_provider='openai'):
+    """Genera un acta de reunión basada en la transcripción usando el proveedor preferido del usuario"""
     try:
-        # Intentar con Google AI primero si está configurado
-        if current_app.config.get('GOOGLE_AI_API_KEY'):
-            current_app.logger.info("Generando acta con Google AI (Gemini)")
+        # Usar el proveedor preferido del usuario
+        if user_provider == 'google' and current_app.config.get('GOOGLE_AI_API_KEY'):
+            current_app.logger.info("Generando acta con Google AI (Gemini) - Preferencia de usuario")
             return generate_meeting_minutes_with_google(transcription)
-        
-        # Si no está configurado Google AI, usar OpenAI como fallback
-        current_app.logger.info("Generando acta con OpenAI (GPT)")
+        elif user_provider == 'openai' and current_app.config.get('OPENAI_API_KEY'):
+            current_app.logger.info("Generando acta con OpenAI (GPT) - Preferencia de usuario")
+        else:
+            # Fallback: intentar con el proveedor alternativo
+            if user_provider == 'google':
+                current_app.logger.warning("Google AI no disponible, usando OpenAI como fallback")
+            else:
+                current_app.logger.warning("OpenAI no disponible, intentando Google AI como fallback")
+                if current_app.config.get('GOOGLE_AI_API_KEY'):
+                    return generate_meeting_minutes_with_google(transcription)
+
+        # Generar con OpenAI
         client = initialize_openai_client()
         if not client:
             return {"success": False, "error": "No se pudo inicializar el cliente de OpenAI", "provider": "OpenAI"}
@@ -138,17 +147,27 @@ def generate_meeting_minutes(transcription):
         current_app.logger.error(f"Error al generar el acta: {str(e)}")
         return {"success": False, "error": str(e), "provider": "Error en generación"}
 
-def generate_requirements(transcription):
-    """Genera un documento de requerimientos de software basado en la transcripción"""
+def generate_requirements(transcription, user_provider='openai'):
+    """Genera un documento de requerimientos de software basado en la transcripción usando el proveedor preferido del usuario"""
     try:
-        # Intentar con Google AI primero si está configurado
-        if current_app.config.get('GOOGLE_AI_API_KEY'):
+        # Usar el proveedor preferido del usuario
+        if user_provider == 'google' and current_app.config.get('GOOGLE_AI_API_KEY'):
             from modules.transcription.google_ai_service import extract_requirements_with_google
-            current_app.logger.info("Generando requerimientos con Google AI (Gemini)")
+            current_app.logger.info("Generando requerimientos con Google AI (Gemini) - Preferencia de usuario")
             return extract_requirements_with_google(transcription)
-        
-        # Si no está configurado Google AI, usar OpenAI como fallback
-        current_app.logger.info("Generando requerimientos con OpenAI (GPT)")
+        elif user_provider == 'openai' and current_app.config.get('OPENAI_API_KEY'):
+            current_app.logger.info("Generando requerimientos con OpenAI (GPT) - Preferencia de usuario")
+        else:
+            # Fallback: intentar con el proveedor alternativo
+            if user_provider == 'google':
+                current_app.logger.warning("Google AI no disponible, usando OpenAI como fallback")
+            else:
+                current_app.logger.warning("OpenAI no disponible, intentando Google AI como fallback")
+                if current_app.config.get('GOOGLE_AI_API_KEY'):
+                    from modules.transcription.google_ai_service import extract_requirements_with_google
+                    return extract_requirements_with_google(transcription)
+
+        # Generar con OpenAI
         client = initialize_openai_client()
         if not client:
             return {"success": False, "error": "No se pudo inicializar el cliente de OpenAI", "provider": "OpenAI"}

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_user, logout_user, current_user, login_required
 from urllib.parse import urlparse  # Usar urllib.parse en lugar de werkzeug
 from modules.auth.models import User, db
@@ -54,3 +54,24 @@ def register():
 @login_required
 def profile():
     return render_template('auth/profile.html', title='Perfil')
+
+@auth_bp.route('/update-ai-provider', methods=['POST'])
+@login_required
+def update_ai_provider():
+    """Actualiza el proveedor de IA preferido del usuario"""
+    try:
+        data = request.get_json()
+        ai_provider = data.get('ai_provider')
+
+        # Validar que el proveedor sea válido
+        if ai_provider not in ['openai', 'google']:
+            return jsonify({'success': False, 'error': 'Proveedor de IA no válido'})
+
+        # Actualizar el proveedor del usuario
+        current_user.ai_provider = ai_provider
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Proveedor de IA actualizado correctamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})

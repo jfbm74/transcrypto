@@ -118,11 +118,14 @@ def generate_document():
         
         current_app.logger.info(f"Generando {document_type}. APIs disponibles: OpenAI={has_openai_api}, Google AI={has_google_api}")
         
+        # Obtener el proveedor preferido del usuario
+        user_provider = current_user.ai_provider if hasattr(current_user, 'ai_provider') and current_user.ai_provider else 'openai'
+
         # Llamar a la función correspondiente según el tipo de documento
         if document_type == 'requirements':
-            result = generate_requirements(transcription)
+            result = generate_requirements(transcription, user_provider)
         else:  # Por defecto, generar acta
-            result = generate_meeting_minutes(transcription)
+            result = generate_meeting_minutes(transcription, user_provider)
         
         # Devolver la respuesta con el mismo formato que antes, pero en campo content en vez de acta
         response = {

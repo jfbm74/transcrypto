@@ -14,7 +14,8 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(sa.String(128))
     created_at = db.Column(sa.DateTime, default=datetime.utcnow)
     is_admin = db.Column(sa.Boolean, default=False)
-    
+    ai_provider = db.Column(sa.String(20), default='openai')  # 'openai' o 'google'
+
     # Relación con las transcripciones
     transcriptions = relationship('Transcription', backref='user', lazy='dynamic')
     

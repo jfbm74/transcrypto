@@ -16,7 +16,9 @@
       "Bash(docker-compose down:*)",
       "Bash(docker compose:*)",
       "Bash(curl:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(flask db migrate:*)",
+      "Bash(FLASK_APP=app.py flask db upgrade:*)"
     ],
     "deny": [],
     "ask": []

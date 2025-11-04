@@ -25,13 +25,28 @@
                     </div>
                 </div>
                 
+                <h5 class="border-bottom pb-2">Preferencias de IA</h5>
+                <form id="ai-provider-form" class="mb-4">
+                    <div class="form-group">
+                        <label for="ai_provider"><strong>Proveedor de IA para generación de documentos:</strong></label>
+                        <select class="form-control" id="ai_provider" name="ai_provider">
+                            <option value="openai" {% if current_user.ai_provider == 'openai' %}selected{% endif %}>OpenAI (GPT-4)</option>
+                            <option value="google" {% if current_user.ai_provider == 'google' %}selected{% endif %}>Google AI (Gemini)</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            Selecciona el proveedor de IA que deseas usar para generar actas de reunión y documentos de requerimientos.
+                        </small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Guardar preferencias</button>
+                </form>
+
                 <h5 class="border-bottom pb-2">Uso del servicio</h5>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <p><strong>Transcripciones realizadas:</strong> {{ current_user.get_transcription_count() }}</p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Transcripciones gratuitas restantes:</strong> 
+                        <p><strong>Transcripciones gratuitas restantes:</strong>
                             {{ config['FREE_TRANSCRIPTIONS_LIMIT'] - current_user.get_transcription_count() }}
                         </p>
                     </div>
@@ -83,4 +98,33 @@
         margin: 0 auto;
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('ai-provider-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const provider = document.getElementById('ai_provider').value;
+
+    fetch('{{ url_for("auth.update_ai_provider") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ai_provider: provider })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Preferencias guardadas correctamente');
+        } else {
+            alert('Error al guardar preferencias: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error al guardar preferencias: ' + error);
+    });
+});
+</script>
 {% endblock %}

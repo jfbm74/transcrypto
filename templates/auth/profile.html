@@ -40,6 +40,60 @@
                     <button type="submit" class="btn btn-primary">Guardar preferencias</button>
                 </form>
 
+                <h5 class="border-bottom pb-2 mt-4">Integración con Confluence</h5>
+                {% if current_user.has_confluence_configured() %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> Confluence configurado correctamente
+                    <small class="d-block mt-1">URL: {{ current_user.confluence_url }}</small>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Configura tu cuenta de Confluence para publicar documentos directamente desde ZentraText
+                </div>
+                {% endif %}
+
+                <form id="confluence-config-form" class="mb-4">
+                    <div class="form-group">
+                        <label for="confluence_email"><strong>Email de Atlassian:</strong></label>
+                        <input type="email" class="form-control" id="confluence_email" name="confluence_email"
+                               value="{{ current_user.confluence_email or '' }}"
+                               placeholder="tu-email@ejemplo.com">
+                        <small class="form-text text-muted">El email que usas para iniciar sesión en Atlassian</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confluence_api_token"><strong>API Token de Confluence:</strong></label>
+                        <input type="password" class="form-control" id="confluence_api_token" name="confluence_api_token"
+                               placeholder="{% if current_user.confluence_api_token_encrypted %}••••••••••••{% else %}Ingresa tu API Token{% endif %}">
+                        <small class="form-text text-muted">
+                            Genera tu token en: <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Atlassian API Tokens</a>
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confluence_url"><strong>URL de Confluence:</strong></label>
+                        <input type="url" class="form-control" id="confluence_url" name="confluence_url"
+                               value="{{ current_user.confluence_url or 'https://tu-empresa.atlassian.net/wiki' }}"
+                               placeholder="https://tu-empresa.atlassian.net/wiki">
+                        <small class="form-text text-muted">URL completa de tu Confluence Cloud</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confluence_default_space"><strong>Espacio por defecto (opcional):</strong></label>
+                        <input type="text" class="form-control" id="confluence_default_space" name="confluence_default_space"
+                               value="{{ current_user.confluence_default_space or '' }}"
+                               placeholder="Ej: TEAM">
+                        <small class="form-text text-muted">Clave del espacio donde publicar por defecto</small>
+                    </div>
+
+                    <button type="button" class="btn btn-secondary" id="test-confluence-btn">
+                        <i class="fas fa-plug"></i> Probar Conexión
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar Configuración
+                    </button>
+                </form>
+
                 <h5 class="border-bottom pb-2">Uso del servicio</h5>
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -102,6 +156,7 @@
 
 {% block extra_js %}
 <script>
+// Formulario de preferencias de IA
 document.getElementById('ai-provider-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -124,6 +179,88 @@ document.getElementById('ai-provider-form').addEventListener('submit', function(
     })
     .catch(error => {
         alert('Error al guardar preferencias: ' + error);
+    });
+});
+
+// Formulario de configuración de Confluence
+document.getElementById('confluence-config-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = {
+        confluence_email: document.getElementById('confluence_email').value,
+        confluence_api_token: document.getElementById('confluence_api_token').value,
+        confluence_url: document.getElementById('confluence_url').value,
+        confluence_default_space: document.getElementById('confluence_default_space').value
+    };
+
+    // Validar campos requeridos
+    if (!formData.confluence_email || !formData.confluence_url) {
+        alert('Por favor completa los campos requeridos (Email y URL)');
+        return;
+    }
+
+    fetch('{{ url_for("auth.update_confluence_config") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Configuración de Confluence guardada correctamente');
+            location.reload(); // Recargar para mostrar el estado actualizado
+        } else {
+            alert('Error al guardar configuración: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error al guardar configuración: ' + error);
+    });
+});
+
+// Botón de probar conexión
+document.getElementById('test-confluence-btn').addEventListener('click', function() {
+    const email = document.getElementById('confluence_email').value;
+    const token = document.getElementById('confluence_api_token').value;
+    const url = document.getElementById('confluence_url').value;
+
+    if (!email || !token || !url) {
+        alert('Por favor completa todos los campos antes de probar la conexión');
+        return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando...';
+
+    fetch('{{ url_for("auth.test_confluence_connection") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            confluence_email: email,
+            confluence_api_token: token,
+            confluence_url: url
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug"></i> Probar Conexión';
+
+        if (data.success) {
+            alert('✅ ' + data.message);
+        } else {
+            alert('❌ ' + data.message);
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug"></i> Probar Conexión';
+        alert('Error al probar conexión: ' + error);
     });
 });
 </script>

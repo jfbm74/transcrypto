@@ -78,12 +78,15 @@ class ConfluenceService:
             dict: {'success': bool, 'spaces': list, 'error': str}
         """
         try:
+            current_app.logger.info(f"Obteniendo espacios de Confluence desde: {self.api_base_url}/space")
             response = requests.get(
                 f"{self.api_base_url}/space",
                 headers=self.headers,
                 params={'limit': 100},
                 timeout=10
             )
+
+            current_app.logger.info(f"Respuesta de Confluence: Status {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
@@ -95,12 +98,15 @@ class ConfluenceService:
                     }
                     for space in data.get('results', [])
                 ]
+                current_app.logger.info(f"Se encontraron {len(spaces)} espacios")
                 return {'success': True, 'spaces': spaces}
             else:
-                return {'success': False, 'error': f'Error {response.status_code}: {response.text}', 'spaces': []}
+                error_msg = f'Error {response.status_code}: {response.text}'
+                current_app.logger.error(f"Error al obtener espacios: {error_msg}")
+                return {'success': False, 'error': error_msg, 'spaces': []}
 
         except Exception as e:
-            current_app.logger.error(f"Error al obtener espacios de Confluence: {str(e)}")
+            current_app.logger.error(f"Excepción al obtener espacios de Confluence: {str(e)}")
             return {'success': False, 'error': str(e), 'spaces': []}
 
     def get_pages_in_space(self, space_key, limit=50):
@@ -142,41 +148,150 @@ class ConfluenceService:
 
     def convert_to_storage_format(self, text):
         """
-        Convierte texto plano a Confluence Storage Format (HTML)
+        Convierte texto plano a Confluence Storage Format (HTML) con formato profesional
 
         Args:
             text: Texto a convertir
 
         Returns:
-            str: HTML en formato Storage de Confluence
+            str: HTML en formato Storage de Confluence con estilos mejorados
         """
-        # Escapar caracteres especiales HTML
-        text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        import re
+        from datetime import datetime
 
-        # Convertir saltos de línea a párrafos
-        paragraphs = text.split('\n\n')
+        # Escapar caracteres especiales HTML pero preservar algunos símbolos
+        def escape_html(s):
+            return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
         html_parts = []
 
-        for para in paragraphs:
-            if para.strip():
-                # Detectar títulos (líneas que terminan en ':' o están en mayúsculas)
-                lines = para.split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
+        # Agregar banner informativo al inicio
+        html_parts.append('''
+            <ac:structured-macro ac:name="info" ac:schema-version="1">
+                <ac:rich-text-body>
+                    <p><strong>Documento generado automáticamente</strong> desde ZentraText</p>
+                    <p>Fecha de generación: ''' + datetime.now().strftime('%d/%m/%Y %H:%M') + '''</p>
+                </ac:rich-text-body>
+            </ac:structured-macro>
+        ''')
 
-                    # Título si termina con ':'
-                    if line.endswith(':') and len(line) < 100:
-                        html_parts.append(f'<h2>{line[:-1]}</h2>')
-                    # Detectar listas con viñetas (- o *)
-                    elif line.startswith('- ') or line.startswith('* '):
-                        html_parts.append(f'<li>{line[2:]}</li>')
-                    # Párrafo normal
+        # Dividir en secciones por títulos principales
+        lines = text.split('\n')
+        i = 0
+        in_list = False
+        list_items = []
+
+        while i < len(lines):
+            line = lines[i].strip()
+
+            if not line:
+                i += 1
+                continue
+
+            # Detectar título principal (TODO MAYÚSCULAS o con "ACTA", "DOCUMENTO", etc.)
+            if re.match(r'^[A-ZÁÉÍÓÚÑ\s]{10,}$', line) or any(keyword in line.upper() for keyword in ['ACTA', 'DOCUMENTO', 'REQUERIMIENTOS', 'ESPECIFICACIÓN']):
+                if in_list and list_items:
+                    html_parts.append('<ul>' + ''.join(list_items) + '</ul>')
+                    list_items = []
+                    in_list = False
+
+                html_parts.append(f'<h1><strong>{escape_html(line)}</strong></h1>')
+                html_parts.append('<hr/>')
+
+            # Detectar sección (termina con ":")
+            elif line.endswith(':') and len(line) < 100 and not line.startswith('-'):
+                if in_list and list_items:
+                    html_parts.append('<ul>' + ''.join(list_items) + '</ul>')
+                    list_items = []
+                    in_list = False
+
+                # Determinar nivel de título basado en contenido
+                section_lower = line.lower()
+                if any(keyword in section_lower for keyword in ['información general', 'resumen ejecutivo', 'contexto']):
+                    html_parts.append(f'<h2><ac:emoticon ac:name="blue-star" /> {escape_html(line[:-1])}</h2>')
+                elif any(keyword in section_lower for keyword in ['participantes', 'asistentes', 'stakeholders']):
+                    html_parts.append(f'<h2><ac:emoticon ac:name="smile" /> {escape_html(line[:-1])}</h2>')
+                elif any(keyword in section_lower for keyword in ['agenda', 'orden del día', 'temas']):
+                    html_parts.append(f'<h2><ac:emoticon ac:name="yellow-star" /> {escape_html(line[:-1])}</h2>')
+                elif any(keyword in section_lower for keyword in ['desarrollo', 'discusión', 'análisis']):
+                    html_parts.append(f'<h2><ac:emoticon ac:name="light-on" /> {escape_html(line[:-1])}</h2>')
+                elif any(keyword in section_lower for keyword in ['acuerdos', 'compromisos', 'decisiones']):
+                    html_parts.append(f'<h2><ac:emoticon ac:name="check" /> {escape_html(line[:-1])}</h2>')
+                elif any(keyword in section_lower for keyword in ['requerimientos', 'requisitos']):
+                    html_parts.append(f'<h2><ac:emoticon ac:name="blue-star" /> {escape_html(line[:-1])}</h2>')
+                else:
+                    html_parts.append(f'<h3>{escape_html(line[:-1])}</h3>')
+
+            # Detectar lista numerada o con viñetas
+            elif re.match(r'^[\-\*\•]\s+', line) or re.match(r'^\d+[\.\)]\s+', line):
+                # Extraer contenido del item
+                content = re.sub(r'^[\-\*\•\d\.\)]+\s+', '', line)
+
+                # Detectar si es un requerimiento (RF-, RNF-, etc.)
+                if re.match(r'^(RF|RNF|RT|RN|RFC)[-\s]*\d+', content):
+                    req_id = re.match(r'^(RF|RNF|RT|RN|RFC)[-\s]*\d+', content).group(0)
+                    req_content = content.replace(req_id, '').strip(':- ')
+                    list_items.append(f'<li><strong><ac:emoticon ac:name="blue-star" /> {escape_html(req_id)}</strong>: {escape_html(req_content)}</li>')
+                # Detectar si menciona prioridad
+                elif 'prioridad' in content.lower() or any(p in content.lower() for p in ['alta', 'media', 'baja', 'crítica']):
+                    if 'alta' in content.lower() or 'crítica' in content.lower():
+                        list_items.append(f'<li><ac:emoticon ac:name="warning" /> {escape_html(content)}</li>')
+                    elif 'media' in content.lower():
+                        list_items.append(f'<li><ac:emoticon ac:name="yellow-star" /> {escape_html(content)}</li>')
                     else:
-                        # Reemplazar saltos de línea simples por <br/>
-                        line_with_br = line.replace('\n', '<br/>')
-                        html_parts.append(f'<p>{line_with_br}</p>')
+                        list_items.append(f'<li><ac:emoticon ac:name="grey-star" /> {escape_html(content)}</li>')
+                else:
+                    list_items.append(f'<li>{escape_html(content)}</li>')
+
+                in_list = True
+
+            # Detectar fechas (dd/mm/yyyy, yyyy-mm-dd, etc.)
+            elif re.search(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}', line):
+                if in_list and list_items:
+                    html_parts.append('<ul>' + ''.join(list_items) + '</ul>')
+                    list_items = []
+                    in_list = False
+
+                html_parts.append(f'<p><ac:emoticon ac:name="blue-star" /> <strong>{escape_html(line)}</strong></p>')
+
+            # Detectar email o contactos
+            elif '@' in line or re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', line):
+                if in_list and list_items:
+                    html_parts.append('<ul>' + ''.join(list_items) + '</ul>')
+                    list_items = []
+                    in_list = False
+
+                html_parts.append(f'<p><ac:emoticon ac:name="smile" /> {escape_html(line)}</p>')
+
+            # Párrafo normal
+            else:
+                if in_list and list_items:
+                    html_parts.append('<ul>' + ''.join(list_items) + '</ul>')
+                    list_items = []
+                    in_list = False
+
+                # Detectar texto importante (entre ** o en MAYÚSCULAS)
+                if line.isupper() and len(line) > 5 and len(line) < 50:
+                    html_parts.append(f'<p><strong>{escape_html(line)}</strong></p>')
+                elif '**' in line:
+                    # Convertir **texto** a <strong>
+                    line = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', escape_html(line))
+                    html_parts.append(f'<p>{line}</p>')
+                else:
+                    html_parts.append(f'<p>{escape_html(line)}</p>')
+
+            i += 1
+
+        # Cerrar lista si quedó abierta
+        if in_list and list_items:
+            html_parts.append('<ul>' + ''.join(list_items) + '</ul>')
+
+        # Agregar separador final
+        html_parts.append('<hr/>')
+        html_parts.append('''
+            <p><em>Este documento fue generado automáticamente por ZentraText.
+            Para editar o actualizar, vuelve a publicar desde la aplicación.</em></p>
+        ''')
 
         return ''.join(html_parts)
 
@@ -215,7 +330,7 @@ class ConfluenceService:
             current_app.logger.error(f"Error al buscar página: {str(e)}")
             return None
 
-    def create_page(self, space_key, title, content, parent_id=None):
+    def create_page(self, space_key, title, content, parent_id=None, as_draft=True):
         """
         Crea una nueva página en Confluence
 
@@ -224,6 +339,7 @@ class ConfluenceService:
             title: Título de la página
             content: Contenido en Storage Format
             parent_id: ID de la página padre (opcional)
+            as_draft: Si es True, crea la página como borrador (por defecto: True)
 
         Returns:
             dict: {'success': bool, 'page_id': str, 'page_url': str, 'error': str}
@@ -236,6 +352,7 @@ class ConfluenceService:
                 'type': 'page',
                 'title': title,
                 'space': {'key': space_key},
+                'status': 'draft' if as_draft else 'current',  # Establecer como borrador
                 'body': {
                     'storage': {
                         'value': storage_content,
@@ -276,7 +393,7 @@ class ConfluenceService:
             current_app.logger.error(f"Excepción al crear página: {str(e)}")
             return {'success': False, 'error': str(e)}
 
-    def update_page(self, page_id, title, content, current_version):
+    def update_page(self, page_id, title, content, current_version, as_draft=True):
         """
         Actualiza una página existente en Confluence
 
@@ -285,6 +402,7 @@ class ConfluenceService:
             title: Nuevo título de la página
             content: Nuevo contenido en Storage Format
             current_version: Versión actual de la página
+            as_draft: Si es True, mantiene la página como borrador (por defecto: True)
 
         Returns:
             dict: {'success': bool, 'page_id': str, 'page_url': str, 'error': str}
@@ -297,6 +415,7 @@ class ConfluenceService:
                 'version': {'number': current_version + 1},
                 'title': title,
                 'type': 'page',
+                'status': 'draft' if as_draft else 'current',  # Mantener como borrador
                 'body': {
                     'storage': {
                         'value': storage_content,
@@ -334,7 +453,7 @@ class ConfluenceService:
             current_app.logger.error(f"Error al actualizar página: {str(e)}")
             return {'success': False, 'error': str(e)}
 
-    def publish_or_update_page(self, space_key, title, content, parent_id=None, labels=None):
+    def publish_or_update_page(self, space_key, title, content, parent_id=None, labels=None, as_draft=True):
         """
         Publica o actualiza una página en Confluence.
         Si la página existe, la actualiza. Si no, la crea.
@@ -345,6 +464,7 @@ class ConfluenceService:
             content: Contenido de la página
             parent_id: ID de la página padre (opcional)
             labels: Lista de etiquetas/labels (opcional)
+            as_draft: Si es True, crea/actualiza como borrador (por defecto: True)
 
         Returns:
             dict: Resultado de la operación
@@ -354,22 +474,28 @@ class ConfluenceService:
 
         if existing_page:
             # Actualizar página existente
-            current_app.logger.info(f"Actualizando página existente: {title}")
+            current_app.logger.info(f"Actualizando página existente como borrador: {title}")
             current_version = existing_page['version']['number']
             result = self.update_page(
                 existing_page['id'],
                 title,
                 content,
-                current_version
+                current_version,
+                as_draft=as_draft
             )
         else:
             # Crear nueva página
-            current_app.logger.info(f"Creando nueva página: {title}")
-            result = self.create_page(space_key, title, content, parent_id)
+            current_app.logger.info(f"Creando nueva página como borrador: {title}")
+            result = self.create_page(space_key, title, content, parent_id, as_draft=as_draft)
 
         # Agregar labels si se especificaron y la operación fue exitosa
         if result['success'] and labels:
             self.add_labels(result['page_id'], labels)
+
+        # Agregar información sobre el estado de borrador al mensaje
+        if result['success'] and as_draft:
+            result['message'] = result.get('message', '') + ' (guardada como borrador)'
+            result['is_draft'] = True
 
         return result
 

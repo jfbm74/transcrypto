@@ -75,3 +75,55 @@ def update_ai_provider():
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@auth_bp.route('/update-confluence-config', methods=['POST'])
+@login_required
+def update_confluence_config():
+    """Actualiza la configuración de Confluence del usuario"""
+    try:
+        data = request.get_json()
+
+        # Validar campos requeridos
+        if not data.get('confluence_email') or not data.get('confluence_url'):
+            return jsonify({'success': False, 'error': 'Email y URL son campos requeridos'})
+
+        # Actualizar configuración
+        current_user.confluence_email = data.get('confluence_email')
+        current_user.confluence_url = data.get('confluence_url')
+        current_user.confluence_default_space = data.get('confluence_default_space', '')
+
+        # Actualizar token solo si se proporcionó uno nuevo
+        api_token = data.get('confluence_api_token', '').strip()
+        if api_token:
+            current_user.set_confluence_token(api_token)
+
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Configuración de Confluence guardada correctamente'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@auth_bp.route('/test-confluence-connection', methods=['POST'])
+@login_required
+def test_confluence_connection():
+    """Prueba la conexión con Confluence usando las credenciales proporcionadas"""
+    try:
+        from modules.transcription.confluence_service import ConfluenceService
+
+        data = request.get_json()
+        email = data.get('confluence_email')
+        token = data.get('confluence_api_token')
+        url = data.get('confluence_url')
+
+        if not email or not token or not url:
+            return jsonify({'success': False, 'message': 'Faltan datos requeridos'})
+
+        # Crear servicio temporal para probar
+        confluence = ConfluenceService(email, token, url)
+        result = confluence.test_connection()
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al probar conexión: {str(e)}'})

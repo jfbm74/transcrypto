@@ -230,3 +230,138 @@ def get_transcription_id():
     except Exception as e:
         current_app.logger.error(f"Error al obtener ID de transcripción: {str(e)}")
         return jsonify({"success": False, "error": str(e)})
+
+@transcription_bp.route('/confluence/spaces', methods=["GET"])
+@login_required
+def get_confluence_spaces():
+    """Obtiene la lista de espacios de Confluence del usuario"""
+    try:
+        from modules.transcription.confluence_service import ConfluenceService
+
+        # Verificar que el usuario tenga Confluence configurado
+        current_app.logger.info(f"Usuario {current_user.id} solicitando espacios de Confluence")
+        if not current_user.has_confluence_configured():
+            current_app.logger.warning(f"Usuario {current_user.id} no tiene Confluence configurado")
+            return jsonify({"success": False, "error": "Confluence no está configurado"})
+
+        current_app.logger.info(f"Confluence configurado para usuario {current_user.id}: email={current_user.confluence_email}, url={current_user.confluence_url}")
+
+        # Crear servicio de Confluence
+        confluence = ConfluenceService(
+            current_user.confluence_email,
+            current_user.get_confluence_token(),
+            current_user.confluence_url
+        )
+
+        # Obtener espacios
+        result = confluence.get_spaces()
+
+        # Agregar espacio por defecto si está configurado
+        if result['success']:
+            result['default_space'] = current_user.confluence_default_space
+
+        return jsonify(result)
+
+    except Exception as e:
+        current_app.logger.error(f"Error al obtener espacios de Confluence: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)})
+
+@transcription_bp.route('/confluence/pages', methods=["GET"])
+@login_required
+def get_confluence_pages():
+    """Obtiene las páginas de un espacio de Confluence"""
+    try:
+        from modules.transcription.confluence_service import ConfluenceService
+
+        space_key = request.args.get('space_key')
+        if not space_key:
+            return jsonify({"success": False, "error": "Falta el parámetro space_key"})
+
+        # Verificar que el usuario tenga Confluence configurado
+        if not current_user.has_confluence_configured():
+            return jsonify({"success": False, "error": "Confluence no está configurado"})
+
+        # Crear servicio de Confluence
+        confluence = ConfluenceService(
+            current_user.confluence_email,
+            current_user.get_confluence_token(),
+            current_user.confluence_url
+        )
+
+        # Obtener páginas del espacio
+        result = confluence.get_pages_in_space(space_key)
+
+        return jsonify(result)
+
+    except Exception as e:
+        current_app.logger.error(f"Error al obtener páginas de Confluence: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
+
+@transcription_bp.route('/confluence/publish', methods=["POST"])
+@login_required
+def publish_to_confluence():
+    """Publica un documento en Confluence"""
+    try:
+        from modules.transcription.confluence_service import ConfluenceService
+        from datetime import datetime
+
+        data = request.get_json()
+        transcription_id = data.get("transcription_id")
+        page_title = data.get("page_title")
+        space_key = data.get("space_key")
+        parent_page_id = data.get("parent_page_id")
+        content = data.get("content")
+        document_type = data.get("document_type", "acta")
+
+        # Validar datos requeridos
+        if not all([transcription_id, page_title, space_key, content]):
+            return jsonify({"success": False, "error": "Faltan datos requeridos"})
+
+        # Verificar que el usuario tenga Confluence configurado
+        if not current_user.has_confluence_configured():
+            return jsonify({"success": False, "error": "Confluence no está configurado"})
+
+        # Verificar que la transcripción pertenece al usuario
+        transcription = Transcription.query.filter_by(
+            id=transcription_id,
+            user_id=current_user.id
+        ).first()
+
+        if not transcription:
+            return jsonify({"success": False, "error": "Transcripción no encontrada"})
+
+        # Crear servicio de Confluence
+        confluence = ConfluenceService(
+            current_user.confluence_email,
+            current_user.get_confluence_token(),
+            current_user.confluence_url
+        )
+
+        # Preparar etiquetas/labels
+        labels = ["transcripcion", document_type, datetime.now().strftime("%Y-%m")]
+
+        # Publicar o actualizar página
+        result = confluence.publish_or_update_page(
+            space_key=space_key,
+            title=page_title,
+            content=content,
+            parent_id=parent_page_id,
+            labels=labels
+        )
+
+        # Si fue exitoso, actualizar la transcripción con la información de Confluence
+        if result['success']:
+            transcription.confluence_page_id = result['page_id']
+            transcription.confluence_page_url = result['page_url']
+            transcription.confluence_published_at = datetime.utcnow()
+            db.session.commit()
+
+            current_app.logger.info(f"Documento publicado en Confluence: {result['page_url']}")
+
+        return jsonify(result)
+
+    except Exception as e:
+        current_app.logger.error(f"Error al publicar en Confluence: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})

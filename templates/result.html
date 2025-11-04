@@ -66,8 +66,68 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-success" id="btnSaveActa">Guardar documento</button>
+                <button type="button" class="btn btn-warning" id="btnPublishConfluence">
+                    <i class="fas fa-cloud-upload-alt"></i> Publicar en Confluence
+                </button>
                 <button type="button" class="btn btn-primary" id="btnCopyActa">Copiar al portapapeles</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para publicar en Confluence -->
+<div class="modal fade" id="confluenceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Publicar en Confluence</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="confluenceForm">
+                    <div class="mb-3">
+                        <label for="pageTitle" class="form-label"><strong>Título de la página:</strong></label>
+                        <input type="text" class="form-control" id="pageTitle"
+                               placeholder="Acta de Reunión - {{ filename }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="spaceKey" class="form-label"><strong>Espacio de Confluence:</strong></label>
+                        <select class="form-control" id="spaceKey">
+                            <option value="">Cargando espacios...</option>
+                        </select>
+                        <small class="form-text text-muted">Selecciona el espacio donde publicar</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="parentPage" class="form-label"><strong>Página padre (opcional):</strong></label>
+                        <select class="form-control" id="parentPage">
+                            <option value="">Sin página padre</option>
+                        </select>
+                        <small class="form-text text-muted">La página se creará como hija de la seleccionada</small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <small>Si ya existe una página con este título, se actualizará con el nuevo contenido.</small>
+                    </div>
+                </div>
+
+                <div id="confluencePublishing" class="text-center d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Publicando...</span>
+                    </div>
+                    <p class="mt-2">Publicando en Confluence, por favor espere...</p>
+                </div>
+
+                <div id="confluenceResult" class="d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnConfirmPublish">
+                    <i class="fas fa-upload"></i> Publicar
+                </button>
             </div>
         </div>
     </div>
@@ -77,6 +137,10 @@
 {% if transcription_id %}
 <input type="hidden" id="transcriptionId" value="{{ transcription_id }}">
 {% endif %}
+
+<!-- Almacenar si el usuario tiene Confluence configurado -->
+<input type="hidden" id="hasConfluence" value="{{ 'true' if current_user.has_confluence_configured() else 'false' }}">
+
 {% endblock %}
 
 {% block extra_js %}
@@ -252,6 +316,202 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => {
                 console.error('Error al copiar: ', err);
             });
+    });
+
+    // ========== FUNCIONALIDAD DE CONFLUENCE ==========
+
+    const hasConfluence = document.getElementById('hasConfluence').value === 'true';
+    const btnPublishConfluence = document.getElementById('btnPublishConfluence');
+
+    // Mostrar/ocultar botón según configuración
+    if (!hasConfluence) {
+        btnPublishConfluence.style.display = 'none';
+    }
+
+    // Abrir modal de Confluence
+    btnPublishConfluence.addEventListener('click', function() {
+        if (!hasConfluence) {
+            alert('Debes configurar Confluence en tu perfil antes de publicar');
+            window.location.href = '{{ url_for("auth.profile") }}';
+            return;
+        }
+
+        const actaContent = document.getElementById('actaContent').innerText;
+        if (!actaContent) {
+            alert('No hay contenido para publicar');
+            return;
+        }
+
+        // Sugerir título basado en el nombre del archivo
+        const suggestedTitle = documentType === 'acta'
+            ? 'Acta de Reunión - {{ filename }}'
+            : 'Documento de Requerimientos - {{ filename }}';
+        document.getElementById('pageTitle').value = suggestedTitle;
+
+        // Abrir modal de Confluence
+        const confluenceModal = new bootstrap.Modal(document.getElementById('confluenceModal'));
+        confluenceModal.show();
+
+        // Cargar espacios de Confluence
+        loadConfluenceSpaces();
+    });
+
+    // Cargar espacios de Confluence
+    function loadConfluenceSpaces() {
+        fetch('{{ url_for("transcription.get_confluence_spaces") }}', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const spaceSelect = document.getElementById('spaceKey');
+            spaceSelect.innerHTML = '<option value="">Selecciona un espacio</option>';
+
+            if (data.success && data.spaces) {
+                data.spaces.forEach(space => {
+                    const option = document.createElement('option');
+                    option.value = space.key;
+                    option.textContent = `${space.name} (${space.key})`;
+                    spaceSelect.appendChild(option);
+                });
+
+                // Seleccionar espacio por defecto si existe
+                if (data.default_space) {
+                    spaceSelect.value = data.default_space;
+                    loadPagesInSpace(data.default_space);
+                }
+            } else {
+                spaceSelect.innerHTML = '<option value="">Error al cargar espacios</option>';
+                console.error('Error:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar espacios:', error);
+            document.getElementById('spaceKey').innerHTML = '<option value="">Error de conexión</option>';
+        });
+    }
+
+    // Cargar páginas cuando se selecciona un espacio
+    document.getElementById('spaceKey').addEventListener('change', function() {
+        const spaceKey = this.value;
+        if (spaceKey) {
+            loadPagesInSpace(spaceKey);
+        } else {
+            document.getElementById('parentPage').innerHTML = '<option value="">Sin página padre</option>';
+        }
+    });
+
+    // Cargar páginas de un espacio
+    function loadPagesInSpace(spaceKey) {
+        fetch(`{{ url_for("transcription.get_confluence_pages") }}?space_key=${spaceKey}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const parentSelect = document.getElementById('parentPage');
+            parentSelect.innerHTML = '<option value="">Sin página padre</option>';
+
+            if (data.success && data.pages) {
+                data.pages.forEach(page => {
+                    const option = document.createElement('option');
+                    option.value = page.id;
+                    option.textContent = page.title;
+                    parentSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar páginas:', error);
+        });
+    }
+
+    // Publicar en Confluence
+    document.getElementById('btnConfirmPublish').addEventListener('click', function() {
+        const pageTitle = document.getElementById('pageTitle').value;
+        const spaceKey = document.getElementById('spaceKey').value;
+        const parentPageId = document.getElementById('parentPage').value;
+        const actaContent = document.getElementById('actaContent').innerText;
+
+        // Validar campos
+        if (!pageTitle || !spaceKey) {
+            alert('Por favor completa el título y selecciona un espacio');
+            return;
+        }
+
+        // Mostrar indicador de carga
+        document.getElementById('confluenceForm').classList.add('d-none');
+        document.getElementById('confluencePublishing').classList.remove('d-none');
+        document.getElementById('btnConfirmPublish').disabled = true;
+
+        // Publicar en Confluence
+        fetch('{{ url_for("transcription.publish_to_confluence") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                transcription_id: currentTranscriptionId,
+                page_title: pageTitle,
+                space_key: spaceKey,
+                parent_page_id: parentPageId || null,
+                content: actaContent,
+                document_type: documentType
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('confluencePublishing').classList.add('d-none');
+            document.getElementById('confluenceResult').classList.remove('d-none');
+            document.getElementById('btnConfirmPublish').disabled = false;
+
+            if (data.success) {
+                const isDraft = data.is_draft !== undefined ? data.is_draft : true;
+                const statusText = isDraft
+                    ? '<strong>guardado como borrador</strong> en Confluence'
+                    : 'publicado en Confluence';
+                const statusIcon = isDraft
+                    ? '<i class="fas fa-file-alt"></i>'
+                    : '<i class="fas fa-check-circle"></i>';
+                const statusClass = isDraft ? 'alert-warning' : 'alert-success';
+
+                document.getElementById('confluenceResult').innerHTML = `
+                    <div class="alert ${statusClass}">
+                        <h5>${statusIcon} ¡Documento ${statusText}!</h5>
+                        <p>${isDraft
+                            ? 'El documento se guardó como <strong>borrador</strong>. Podrás refinarlo y publicarlo cuando estés listo desde Confluence.'
+                            : 'Tu documento ha sido publicado en Confluence.'}</p>
+                        <a href="${data.page_url}" target="_blank" class="btn btn-sm btn-primary">
+                            <i class="fas fa-external-link-alt"></i> ${isDraft ? 'Editar borrador en Confluence' : 'Ver en Confluence'}
+                        </a>
+                    </div>
+                `;
+            } else {
+                document.getElementById('confluenceResult').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-times-circle"></i> Error al publicar</h5>
+                        <p>${data.error}</p>
+                    </div>
+                `;
+                document.getElementById('confluenceForm').classList.remove('d-none');
+            }
+        })
+        .catch(error => {
+            document.getElementById('confluencePublishing').classList.add('d-none');
+            document.getElementById('confluenceResult').classList.remove('d-none');
+            document.getElementById('confluenceResult').innerHTML = `
+                <div class="alert alert-danger">
+                    <h5><i class="fas fa-times-circle"></i> Error de conexión</h5>
+                    <p>${error}</p>
+                </div>
+            `;
+            document.getElementById('confluenceForm').classList.remove('d-none');
+            document.getElementById('btnConfirmPublish').disabled = false;
+        });
     });
 });
 </script>

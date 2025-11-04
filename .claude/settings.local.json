@@ -18,7 +18,8 @@
       "Bash(curl:*)",
       "Bash(xargs:*)",
       "Bash(flask db migrate:*)",
-      "Bash(FLASK_APP=app.py flask db upgrade:*)"
+      "Bash(FLASK_APP=app.py flask db upgrade:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd Confluence integration - Phase 1: Models and API Service\n\nImplements the foundation for Confluence Cloud integration allowing users to\npublish transcription documents (meeting minutes and requirements) directly\nto their Confluence workspace.\n\nBackend Changes:\n- Add Confluence credentials to User model (email, encrypted API token, URL, default space)\n- Add encryption/decryption methods for secure token storage using Fernet\n- Add Confluence tracking fields to Transcription model (page_id, page_url, published_at)\n- Create database migration for all new fields\n\nConfluence Service:\n- Complete ConfluenceService class for API interactions\n- Authentication with email + API token (Basic Auth)\n- Test connection functionality\n- Get spaces and pages from Confluence\n- Convert text to Confluence Storage Format (HTML)\n- Search pages by title\n- Create new pages with optional parent\n- Update existing pages (new version)\n- Smart publish_or_update_page (creates or updates based on existing)\n- Add labels/tags to published pages\n\nSecurity:\n- API tokens encrypted at rest using cryptography.fernet\n- Secure storage with user-specific encryption\n- Token never exposed in logs or responses\n\nNext Phase:\n- UI for Confluence configuration in user profile\n- Publish button and modal in transcription results\n- Backend endpoints for publish operations\n- Install cryptography dependency\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

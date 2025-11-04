@@ -40,8 +40,8 @@ ENV PATH=/home/app/.local/bin:$PATH
 COPY --chown=app:app . .
 
 # Crear directorios necesarios
-RUN mkdir -p uploads transcripciones static/css static/img && \
-    chown -R app:app uploads transcripciones static
+RUN mkdir -p uploads transcripciones db static/css static/img && \
+    chown -R app:app uploads transcripciones db static
 
 # Cambiar al usuario no privilegiado
 USER app

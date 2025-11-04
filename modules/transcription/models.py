@@ -10,9 +10,14 @@ class Transcription(db.Model):
     transcript_path = db.Column(sa.String(255), nullable=False)
     transcript_text = db.Column(sa.Text)
     acta_text = db.Column(sa.Text, nullable=True)
-    document_type = db.Column(sa.String(20), default='acta')  # Nueva columna
+    document_type = db.Column(sa.String(20), default='acta')
     processing_time = db.Column(sa.Float)
     created_at = db.Column(sa.DateTime, default=datetime.utcnow)
-    
+
+    # Campos para integración con Confluence
+    confluence_page_id = db.Column(sa.String(50), nullable=True)
+    confluence_page_url = db.Column(sa.String(500), nullable=True)
+    confluence_published_at = db.Column(sa.DateTime, nullable=True)
+
     def __repr__(self):
         return f'<Transcription {self.original_filename}>'

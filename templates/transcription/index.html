@@ -17,9 +17,25 @@
             <h5 class="card-title">Subir archivo de audio</h5>
             <form action="{{ url_for('transcription.upload_audio') }}" method="POST" enctype="multipart/form-data">
                 <div class="mb-3">
-                    <label for="file" class="form-label">Selecciona un archivo de audio (MP3, WAV, etc.)</label>
-                    <input type="file" class="form-control" id="file" name="file" accept="audio/*" required>
+                    <label for="file" class="form-label">Selecciona un archivo de audio (MP3, WAV, M4A, MP4, etc.)</label>
+                    <input type="file" class="form-control" id="file" name="file" accept="audio/*,video/*" required>
+                    <small class="form-text text-muted">
+                        Formatos soportados: Audio (MP3, WAV, M4A, OGG) y Video (MP4, AVI, MOV, MKV, etc.)
+                    </small>
                 </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="enable_diarization" name="enable_diarization">
+                    <label class="form-check-label" for="enable_diarization">
+                        <strong>Identificar hablantes (Diarización)</strong>
+                        <br>
+                        <small class="text-muted">
+                            Detecta y etiqueta automáticamente quién habla en cada momento (SPEAKER_00, SPEAKER_01, etc.).
+                            <span class="text-warning">⚠️ El procesamiento puede ser más lento (2-3x)</span>
+                        </small>
+                    </label>
+                </div>
+
                 <button type="submit" class="btn btn-primary">Transcribir</button>
             </form>
         </div>

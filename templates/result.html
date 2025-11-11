@@ -22,11 +22,47 @@
                         <p>Tiempo de procesamiento: {{ processing_time }} segundos</p>
                     </div>
                 </div>
-                
+
+                {% if has_diarization %}
+                <div class="alert alert-info mb-4">
+                    <h6 class="mb-2">
+                        <i class="fas fa-users"></i> Diarización de Hablantes Activada
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Hablantes detectados:</strong> {{ speakers_count }}
+                        </div>
+                        <div class="col-md-6">
+                            {% if speakers %}
+                            <small class="text-muted">
+                                Hablantes: {{ speakers|join(', ') }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        La transcripción muestra quién habla en cada momento. Puedes personalizar los nombres de los hablantes en el documento generado.
+                    </small>
+                </div>
+                {% endif %}
+
                 <div class="mb-4">
                     <h5 class="border-bottom pb-2 mb-3">Transcripción</h5>
                     <div class="transcription-container p-3 bg-light border rounded">
-                        {{ transcription|nl2br }}
+                        {% if has_diarization %}
+                            {% for line in transcription.split('\n\n') %}
+                                {% if line.strip() %}
+                                    {% set parts = line.split(':', 1) %}
+                                    {% if parts|length == 2 and parts[0].startswith('SPEAKER_') %}
+                                        <strong class="text-primary">{{ parts[0] }}:</strong> {{ parts[1].strip() }}<br>
+                                    {% else %}
+                                        {{ line }}<br>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            {{ transcription|nl2br }}
+                        {% endif %}
                     </div>
                 </div>
                 
@@ -522,7 +558,18 @@ document.addEventListener('DOMContentLoaded', function() {
     .transcription-container {
         max-height: 500px;
         overflow-y: auto;
-        white-space: pre-line;
+        white-space: normal;
+        line-height: 1.5;
+    }
+
+    .transcription-container strong {
+        font-weight: 600;
+    }
+
+    .transcription-container br {
+        display: block;
+        content: "";
+        margin-top: 0.3em;
     }
 </style>
 {% endblock %}

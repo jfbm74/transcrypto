@@ -96,6 +96,7 @@ class DiarizationService:
             if not self.initialize():
                 raise RuntimeError("No se pudo inicializar el servicio de diarización")
 
+        temp_wav_path = None
         try:
             current_app.logger.info(f"Iniciando diarización de: {audio_path}")
 
@@ -103,10 +104,30 @@ class DiarizationService:
             import os
             file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
             current_app.logger.info(f"Tamaño del archivo: {file_size_mb:.2f} MB")
+
+            # Convertir a WAV si es necesario (soundfile solo soporta WAV, FLAC, OGG)
+            file_ext = os.path.splitext(audio_path)[1].lower()
+            if file_ext not in ['.wav', '.flac', '.ogg']:
+                current_app.logger.info(f"Convirtiendo {file_ext} a WAV para diarización...")
+                from pydub import AudioSegment
+
+                # Cargar audio en cualquier formato soportado por FFmpeg
+                audio = AudioSegment.from_file(audio_path)
+
+                # Crear archivo temporal WAV
+                temp_wav_path = audio_path.replace(file_ext, '_temp_diarization.wav')
+                audio.export(temp_wav_path, format='wav')
+                current_app.logger.info(f"Archivo convertido a: {temp_wav_path}")
+
+                # Usar el archivo WAV para diarización
+                processing_path = temp_wav_path
+            else:
+                processing_path = audio_path
+
             current_app.logger.info("Ejecutando pipeline de diarización... (esto puede tomar varios minutos)")
 
             # Ejecutar el pipeline de diarización
-            diarization = self.pipeline(audio_path)
+            diarization = self.pipeline(processing_path)
 
             current_app.logger.info("Pipeline de diarización completado")
 
@@ -146,6 +167,14 @@ class DiarizationService:
         except Exception as e:
             current_app.logger.error(f"Error durante la diarización: {str(e)}")
             raise
+        finally:
+            # Limpiar archivo temporal WAV si fue creado
+            if temp_wav_path and os.path.exists(temp_wav_path):
+                try:
+                    os.remove(temp_wav_path)
+                    current_app.logger.info(f"Archivo temporal WAV eliminado: {temp_wav_path}")
+                except Exception as cleanup_error:
+                    current_app.logger.warning(f"No se pudo eliminar archivo temporal WAV: {str(cleanup_error)}")
 
     def extract_audio_segment(
         self,

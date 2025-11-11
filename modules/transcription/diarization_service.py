@@ -52,7 +52,7 @@ class DiarizationService:
 
             self.pipeline = Pipeline.from_pretrained(
                 model_name,
-                token=hf_token
+                use_auth_token=hf_token
             )
 
             # Mover el pipeline al dispositivo apropiado

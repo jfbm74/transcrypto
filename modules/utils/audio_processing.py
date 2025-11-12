@@ -232,25 +232,49 @@ def convert_video_to_audio(video_path, output_folder=None, output_format='mp3'):
         if result.returncode != 0:
             raise Exception(f"Error al convertir video a audio: {result.stderr}")
 
-        # Verificar que el archivo de audio se creó correctamente
-        if not os.path.exists(output_path):
-            raise Exception(f"El archivo de audio no se creó: {output_path}")
+        return output_path
 
-        # Verificar que el archivo no está vacío
-        file_size = os.path.getsize(output_path)
-        if file_size == 0:
-            raise Exception(f"El archivo de audio está vacío (0 bytes): {output_path}")
+    except Exception as e:
+        raise Exception(f"Error durante la conversión de video a audio: {str(e)}")
 
-        if file_size < 1024:  # Menos de 1KB es sospechoso
-            print(f"Advertencia: El archivo de audio es muy pequeño ({file_size} bytes): {output_path}")
+def convert_audio_to_mp3(audio_path, output_folder=None):
+    """
+    Convierte un archivo de audio a MP3 para garantizar compatibilidad con Whisper.
+
+    Args:
+        audio_path: Ruta al archivo de audio original
+        output_folder: Carpeta donde guardar el MP3 (por defecto, la misma que el audio)
+
+    Returns:
+        Ruta al archivo MP3 generado
+    """
+    if output_folder is None:
+        output_folder = os.path.dirname(audio_path)
+
+    # Crear nombre de archivo de salida
+    base_name = os.path.splitext(os.path.basename(audio_path))[0]
+    output_filename = f"{base_name}_converted.mp3"
+    output_path = os.path.join(output_folder, output_filename)
+
+    try:
+        # Comando ffmpeg para convertir a MP3
+        cmd = [
+            'ffmpeg',
+            '-y',  # Sobrescribir archivo si existe
+            '-i', audio_path,
+            '-acodec', 'libmp3lame',
+            '-q:a', '2',  # Calidad de audio alta
+            '-ar', '44100',  # Sample rate estándar
+            output_path
+        ]
+
+        # Ejecutar comando
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise Exception(f"Error al convertir audio a MP3: {result.stderr}")
 
         return output_path
 
     except Exception as e:
-        # Limpiar archivo de salida si existe pero hubo error
-        if 'output_path' in locals() and os.path.exists(output_path):
-            try:
-                os.remove(output_path)
-            except:
-                pass
-        raise Exception(f"Error durante la conversión de video a audio: {str(e)}")
+        raise Exception(f"Error durante la conversión de audio a MP3: {str(e)}")

@@ -26,8 +26,4 @@ class Config:
     # Límites de transcripción
     FREE_TRANSCRIPTIONS_LIMIT = int(os.environ.get('FREE_TRANSCRIPTIONS_LIMIT', 10))
 
-    # Clave de API de Google AI
     GOOGLE_AI_API_KEY = os.environ.get("GOOGLE_AI_API_KEY", "")
-
-    # Token de Hugging Face para diarización de hablantes
-    HF_TOKEN = os.environ.get("HF_TOKEN", "")

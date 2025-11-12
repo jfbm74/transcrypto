@@ -4,7 +4,7 @@ import datetime
 from openai import OpenAI
 from flask import current_app
 from werkzeug.utils import secure_filename
-from modules.utils.audio_processing import split_audio_file, combine_transcriptions, get_file_size, detect_file_type, convert_video_to_audio
+from modules.utils.audio_processing import split_audio_file, combine_transcriptions, get_file_size, detect_file_type, convert_video_to_audio, convert_audio_to_mp3
 from modules.transcription.google_ai_service import generate_meeting_minutes_with_google
 
 # Cliente de OpenAI
@@ -26,43 +26,56 @@ def transcribe_audio(file_path):
     client = initialize_openai_client()
     if not client:
         raise ValueError("No se ha configurado la clave de API de OpenAI")
-    
+
     # Verificar el tamaño del archivo
     file_size_bytes = get_file_size(file_path)
     max_size_bytes = 25 * 1024 * 1024  # 25 MB en bytes
-    
+
     if file_size_bytes > max_size_bytes:
         current_app.logger.info(f"Archivo grande ({file_size_bytes/1024/1024:.2f} MB) detectado, dividiendo en segmentos...")
-        
+
         # Crear carpeta temporal para segmentos
         temp_folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "temp_segments")
         os.makedirs(temp_folder, exist_ok=True)
-        
+
         try:
             # Dividir el archivo en segmentos de máximo 10 MB para tener margen
             segment_paths = split_audio_file(file_path, max_size_mb=10, output_folder=temp_folder)
             current_app.logger.info(f"Archivo dividido en {len(segment_paths)} segmentos")
-            
+
             # Transcribir cada segmento
             segment_transcriptions = []
             for i, segment_path in enumerate(segment_paths):
                 current_app.logger.info(f"Transcribiendo segmento {i+1}/{len(segment_paths)}")
-                
-                with open(segment_path, "rb") as audio_file:
+
+                # Convertir segmento a MP3 si no lo es
+                segment_to_transcribe = segment_path
+                _, segment_ext = os.path.splitext(segment_path)
+                if segment_ext.lower() != '.mp3':
+                    current_app.logger.info(f"Convirtiendo segmento {i+1} a MP3 para compatibilidad")
+                    try:
+                        segment_to_transcribe = convert_audio_to_mp3(segment_path, output_folder=temp_folder)
+                        # Eliminar el segmento original no-MP3
+                        os.remove(segment_path)
+                    except Exception as e:
+                        current_app.logger.warning(f"No se pudo convertir segmento {i+1} a MP3: {str(e)}, intentando con formato original")
+                        segment_to_transcribe = segment_path
+
+                with open(segment_to_transcribe, "rb") as audio_file:
                     transcription = client.audio.transcriptions.create(
                         model="whisper-1",
                         file=audio_file,
                         language="es"
                     )
                 segment_transcriptions.append(transcription.text)
-                
+
                 # Eliminar el archivo del segmento después de procesarlo
-                os.remove(segment_path)
-            
+                os.remove(segment_to_transcribe)
+
             # Combinar todas las transcripciones
             full_transcription = combine_transcriptions(segment_transcriptions)
             return full_transcription
-        
+
         finally:
             # Limpiar cualquier archivo temporal restante y eliminar carpeta temporal
             if os.path.exists(temp_folder):
@@ -75,7 +88,7 @@ def transcribe_audio(file_path):
                     os.rmdir(temp_folder)
                 except:
                     pass
-    
+
     # Proceso normal para archivos pequeños
     with open(file_path, "rb") as audio_file:
         transcription = client.audio.transcriptions.create(
@@ -83,7 +96,7 @@ def transcribe_audio(file_path):
             file=audio_file,
             language="es"
         )
-    
+
     return transcription.text
 
 def generate_meeting_minutes(transcription, user_provider='openai'):
@@ -305,6 +318,7 @@ def process_audio_file(file, user_id):
 
     # Si es un video, convertirlo a audio primero
     audio_file_path = file_info["filepath"]
+    temp_file_to_delete = None
     converted_from_video = False
 
     if file_type == 'video':
@@ -315,11 +329,25 @@ def process_audio_file(file, user_id):
                 output_folder=current_app.config["UPLOAD_FOLDER"],
                 output_format='mp3'
             )
+            temp_file_to_delete = audio_file_path
             converted_from_video = True
             current_app.logger.info(f"Video convertido exitosamente a: {audio_file_path}")
         except Exception as e:
             current_app.logger.error(f"Error al convertir video a audio: {str(e)}")
             raise Exception(f"No se pudo convertir el video a audio: {str(e)}")
+    elif file_type == 'audio' and file_ext.lower() != '.mp3':
+        # Convertir audio no-MP3 a MP3 para garantizar compatibilidad con Whisper
+        current_app.logger.info(f"Convirtiendo audio {file_ext} a MP3 para compatibilidad: {file_info['original_filename']}")
+        try:
+            audio_file_path = convert_audio_to_mp3(
+                file_info["filepath"],
+                output_folder=current_app.config["UPLOAD_FOLDER"]
+            )
+            temp_file_to_delete = audio_file_path
+            current_app.logger.info(f"Audio convertido exitosamente a MP3: {audio_file_path}")
+        except Exception as e:
+            current_app.logger.error(f"Error al convertir audio a MP3: {str(e)}")
+            raise Exception(f"No se pudo convertir el audio a MP3: {str(e)}")
 
     # Transcribir el audio
     start_time = time.time()
@@ -333,12 +361,11 @@ def process_audio_file(file, user_id):
         user_id
     )
 
-    # Limpiar archivo de audio temporal si fue convertido desde video
-    if converted_from_video and audio_file_path != file_info["filepath"]:
+    # Limpiar archivo temporal si fue convertido
+    if temp_file_to_delete and os.path.exists(temp_file_to_delete):
         try:
-            if os.path.exists(audio_file_path):
-                os.remove(audio_file_path)
-                current_app.logger.info(f"Archivo de audio temporal eliminado: {audio_file_path}")
+            os.remove(temp_file_to_delete)
+            current_app.logger.info(f"Archivo temporal eliminado: {temp_file_to_delete}")
         except Exception as e:
             current_app.logger.warning(f"No se pudo eliminar archivo temporal: {str(e)}")
 

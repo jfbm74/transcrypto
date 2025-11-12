@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app
 from flask_login import login_required, current_user
 import os
-import json
 from modules.transcription.services import process_audio_file, generate_meeting_minutes, generate_requirements
 from modules.transcription.models import Transcription, db
 import re
@@ -38,57 +37,10 @@ def upload_audio():
         flash(f"Has alcanzado el límite de {free_limit} transcripciones gratuitas. Por favor, actualiza a un plan de pago.")
         return redirect(url_for("index"))
 
-    # Verificar si el usuario habilitó la diarización
-    enable_diarization = request.form.get('enable_diarization') == 'on'
-
-    current_app.logger.info(f"Procesando archivo con diarización: {enable_diarization}")
-
     # Procesar el archivo
     try:
-        # Si la diarización está habilitada, usar el servicio de diarización
-        if enable_diarization:
-            from modules.transcription.whisper_diarization_service import transcribe_with_diarization
-            from modules.transcription.services import save_uploaded_file, save_transcription
-            import time
-
-            # Guardar el archivo
-            file_info = save_uploaded_file(file, current_user.id)
-
-            # Procesar con diarización
-            start_time = time.time()
-            diarization_result = transcribe_with_diarization(file_info["filepath"])
-            processing_time = time.time() - start_time
-
-            if not diarization_result['success']:
-                # Si falla la diarización, informar al usuario
-                flash(f"Error en diarización: {diarization_result.get('error', 'Error desconocido')}. Intenta sin diarización.")
-                return redirect(url_for("index"))
-
-            # Guardar la transcripción
-            transcription_info = save_transcription(
-                diarization_result['transcription'],
-                file_info["original_filename"],
-                current_user.id
-            )
-
-            # Preparar resultado
-            result = {
-                "original_filename": file_info["original_filename"],
-                "file_path": file_info["filepath"],
-                "transcript_path": transcription_info["transcript_path"],
-                "transcription_text": diarization_result['transcription'],
-                "processing_time": round(processing_time, 2),
-                "has_diarization": True,
-                "speakers": diarization_result.get('speakers', []),
-                "segments": diarization_result.get('segments', [])
-            }
-        else:
-            # Procesamiento normal sin diarización
-            result = process_audio_file(file, current_user.id)
-            result["has_diarization"] = False
-            result["speakers"] = []
-            result["segments"] = []
-
+        result = process_audio_file(file, current_user.id)
+        
         # Guardar la transcripción en la base de datos
         transcription = Transcription(
             user_id=current_user.id,
@@ -96,25 +48,19 @@ def upload_audio():
             file_path=result["file_path"],
             transcript_path=result["transcript_path"],
             transcript_text=result["transcription_text"],
-            processing_time=result["processing_time"],
-            has_diarization=result["has_diarization"],
-            speakers_count=len(result["speakers"]) if result["has_diarization"] else None,
-            diarization_segments=json.dumps(result["segments"]) if result["has_diarization"] else None
+            processing_time=result["processing_time"]
         )
         db.session.add(transcription)
         db.session.commit()
-
+        
         # Mostrar los resultados
         return render_template(
-            "result.html",
+            "result.html", 
             transcription=result["transcription_text"],
             filename=result["original_filename"],
             processing_time=result["processing_time"],
             transcript_path=result["transcript_path"],
-            transcription_id=transcription.id,
-            has_diarization=result["has_diarization"],
-            speakers=result["speakers"],
-            speakers_count=len(result["speakers"]) if result["has_diarization"] else 0
+            transcription_id=transcription.id  # Añadir el ID directamente
         )
     
     except Exception as e:

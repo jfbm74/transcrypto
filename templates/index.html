@@ -22,26 +22,8 @@
                     <form action="{{ url_for('transcription.upload_audio') }}" method="POST" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label for="file" class="form-label">Selecciona un archivo de audio (MP3, WAV, M4A, OGG, MP4)</label>
-                            <input type="file" class="form-control" id="file" name="file" accept="audio/*,video/*" required>
-                            <small class="form-text text-muted">
-                                Formatos soportados: Audio (MP3, WAV, M4A, OGG) y Video (MP4, AVI, MOV, MKV, etc.)
-                            </small>
+                            <input type="file" class="form-control" id="file" name="file" accept=".mp3,.wav,.m4a,.ogg,.mp4" required>
                         </div>
-
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="enable_diarization" name="enable_diarization">
-                                <label class="form-check-label" for="enable_diarization">
-                                    <strong>Identificar hablantes (Diarización)</strong>
-                                    <br>
-                                    <small class="text-muted">
-                                        Detecta quién habla en cada momento (SPEAKER_00, SPEAKER_01, etc.)
-                                        <span class="text-warning">⚠️ Procesamiento 2-3x más lento</span>
-                                    </small>
-                                </label>
-                            </div>
-                        </div>
-
                         <div class="mb-3">
                             <div class="form-text">
                                 Has usado {{ current_user.get_transcription_count() }} de {{ config['FREE_TRANSCRIPTIONS_LIMIT'] }} transcripciones gratuitas.

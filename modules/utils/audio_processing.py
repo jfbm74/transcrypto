@@ -232,7 +232,25 @@ def convert_video_to_audio(video_path, output_folder=None, output_format='mp3'):
         if result.returncode != 0:
             raise Exception(f"Error al convertir video a audio: {result.stderr}")
 
+        # Verificar que el archivo de audio se creó correctamente
+        if not os.path.exists(output_path):
+            raise Exception(f"El archivo de audio no se creó: {output_path}")
+
+        # Verificar que el archivo no está vacío
+        file_size = os.path.getsize(output_path)
+        if file_size == 0:
+            raise Exception(f"El archivo de audio está vacío (0 bytes): {output_path}")
+
+        if file_size < 1024:  # Menos de 1KB es sospechoso
+            print(f"Advertencia: El archivo de audio es muy pequeño ({file_size} bytes): {output_path}")
+
         return output_path
 
     except Exception as e:
+        # Limpiar archivo de salida si existe pero hubo error
+        if 'output_path' in locals() and os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except:
+                pass
         raise Exception(f"Error durante la conversión de video a audio: {str(e)}")

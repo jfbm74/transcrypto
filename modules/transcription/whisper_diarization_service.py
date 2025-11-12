@@ -103,7 +103,32 @@ def transcribe_with_diarization(
             }
 
         # Paso 2: Realizar diarización (identificar segmentos por hablante)
-        diarization_segments = diarization_service.diarize_audio(actual_audio_path)
+        try:
+            diarization_segments = diarization_service.diarize_audio(actual_audio_path)
+        except Exception as diar_error:
+            current_app.logger.error(f"Error en diarización: {str(diar_error)}")
+            current_app.logger.warning("Cayendo a transcripción simple sin diarización")
+
+            # Fallback a transcripción normal
+            from modules.transcription.services import transcribe_audio
+            simple_transcription = transcribe_audio(actual_audio_path)
+
+            # Limpiar archivo temporal si fue creado
+            if temp_audio_path and os.path.exists(temp_audio_path):
+                try:
+                    os.remove(temp_audio_path)
+                    current_app.logger.info(f"Archivo temporal eliminado: {temp_audio_path}")
+                except Exception as e:
+                    current_app.logger.warning(f"No se pudo eliminar archivo temporal: {str(e)}")
+
+            return {
+                'success': True,
+                'transcription': simple_transcription,
+                'segments': [],
+                'speakers': [],
+                'method': 'whisper_only',
+                'warning': f'Error en diarización ({str(diar_error)}). Se procesó sin identificación de hablantes.'
+            }
 
         # Paso 3: Transcribir con Whisper usando timestamps
         whisper_segments = _transcribe_with_timestamps(actual_audio_path, language)
@@ -172,6 +197,21 @@ def _transcribe_with_timestamps(audio_path: str, language: str) -> List[Dict]:
 
         client = OpenAI(api_key=api_key)
 
+        # Verificar que el archivo existe y tiene extensión válida
+        if not os.path.exists(audio_path):
+            raise FileNotFoundError(f"Archivo de audio no encontrado: {audio_path}")
+
+        file_ext = os.path.splitext(audio_path)[1].lower()
+        valid_extensions = ['.flac', '.m4a', '.mp3', '.mp4', '.mpeg', '.mpga', '.oga', '.ogg', '.wav', '.webm']
+
+        if file_ext not in valid_extensions:
+            raise ValueError(
+                f"Formato de archivo no soportado: {file_ext}. "
+                f"Formatos válidos: {', '.join(valid_extensions)}"
+            )
+
+        current_app.logger.info(f"Transcribiendo con Whisper: {audio_path} (formato: {file_ext})")
+
         # Transcribir con formato verbose_json para obtener timestamps
         with open(audio_path, "rb") as audio_file:
             # Nota: timestamp_granularity solo está disponible en versiones recientes de openai
@@ -221,7 +261,19 @@ def _transcribe_with_timestamps(audio_path: str, language: str) -> List[Dict]:
         return segments
 
     except Exception as e:
-        current_app.logger.error(f"Error en transcripción de Whisper: {str(e)}")
+        error_msg = str(e)
+        current_app.logger.error(f"Error en transcripción de Whisper: {error_msg}")
+        current_app.logger.error(f"Archivo de audio: {audio_path}")
+        current_app.logger.error(f"Tamaño del archivo: {os.path.getsize(audio_path) if os.path.exists(audio_path) else 'N/A'} bytes")
+
+        # Si el error es de formato inválido, dar más contexto
+        if "Invalid file format" in error_msg or "format" in error_msg.lower():
+            file_ext = os.path.splitext(audio_path)[1].lower()
+            current_app.logger.error(
+                f"Error de formato detectado. Extensión del archivo: {file_ext}. "
+                f"Verifique que el archivo no está corrupto y es un archivo de audio/video válido."
+            )
+
         raise
 
 

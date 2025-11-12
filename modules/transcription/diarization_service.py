@@ -114,8 +114,9 @@ class DiarizationService:
                 # Cargar audio en cualquier formato soportado por FFmpeg
                 audio = AudioSegment.from_file(audio_path)
 
-                # Crear archivo temporal WAV
-                temp_wav_path = audio_path.replace(file_ext, '_temp_diarization.wav')
+                # Crear archivo temporal WAV (usar splitext para evitar problemas con nombres de archivo)
+                base_path = os.path.splitext(audio_path)[0]
+                temp_wav_path = f"{base_path}_temp_diarization.wav"
                 audio.export(temp_wav_path, format='wav')
                 current_app.logger.info(f"Archivo convertido a: {temp_wav_path}")
 
